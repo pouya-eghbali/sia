@@ -2,6 +2,14 @@
 
 Sia - Binary serialisation and deserialisation with built-in compression
 
+## Performance
+
+This repository contains a pure JS implementation of Sia, on our test data we are 3x slower than JSON,
+but serialized data (including type information for all entries) is 46% the size of JSON.
+
+I'm working on more optimizations, both on the protocol, data exchange specification and the implementation.
+If you have any ideas how to improve this, feel free to post an issue or make a pull request.
+
 ## Protocol specification - draft 1
 
 This section describes the Sia binary data format. For each piece of item to be serialized,
@@ -121,7 +129,7 @@ The rest are value blocks:
 | Constructor | Arguments |
 | ----------- | --------- |
 | Array       | `SEP` separated list of block references |
-| Boolean     | `0` for false, `1` for true |
+| Boolean     | `0` for false, `1` for true (encoded number) |
 | Date        | Numeric value of unix timestamp (encoded number) |
 | Null        | No arguments |
 | Object      | `SEP` separated list of block references in form of `key1 value1 key2 value2...` |
