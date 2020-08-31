@@ -9,7 +9,7 @@ const SIA_CONSTANTS = {
   NUMBER: String.fromCharCode(4),
 };
 
-class SIA {
+class Sia {
   constructor(data) {
     this.data = data;
     this.constructorMap = new Map();
@@ -79,10 +79,10 @@ class SIA {
     if (typeof item === "number") return this.addNumber(item);
     if (item && item.constructor === Object) {
       const entries = [];
-      for (const key in item) entries.push(key, item[key]);
-      const args = entries.map((item) => this.serializeItem(item));
+      for (const key in item)
+        entries.push(this.serializeItem(key), this.serializeItem(item[key]));
       const constructor = "Object";
-      return this.addValue(constructor, args);
+      return this.addValue(constructor, entries);
     }
     if (Array.isArray(item)) {
       const args = item.map((value) => this.serializeItem(value));
@@ -90,13 +90,13 @@ class SIA {
       return this.addValue(constructor, args);
     }
     const { constructor, args = [] } =
-      item && item.toSIA && typeof item.toSIA === "function"
-        ? item.toSIA()
-        : this.itemToSIA(item);
+      item && item.toSia && typeof item.toSia === "function"
+        ? item.toSia()
+        : this.itemtoSia(item);
     const serializedArgs = args.map((value) => this.serializeItem(value));
     return this.addValue(constructor, serializedArgs);
   }
-  itemToSIA(item) {
+  itemtoSia(item) {
     if (item == null) {
       return {
         constructor: "Null",
@@ -129,7 +129,7 @@ class SIA {
   }
 }
 
-class DESIA {
+class DeSia {
   constructor(lines) {
     this.constructorMap = new Map();
     this.valueMap = new Map();
@@ -169,6 +169,6 @@ class DESIA {
   }
 }
 
-module.exports.sia = (data) => new SIA(data).serialize();
+module.exports.sia = (data) => new Sia(data).serialize();
 module.exports.desia = (data, constructors = {}) =>
-  new DESIA(data).deserialize({ ...builtinConstructors, ...constructors });
+  new DeSia(data).deserialize({ ...builtinConstructors, ...constructors });

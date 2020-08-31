@@ -1,5 +1,4 @@
 const { sia, desia } = require("..");
-const constructors = require("../constructors");
 
 test("Serialize dates", () => {
   const date = new Date();
@@ -61,7 +60,7 @@ test("Serialize custom classes", () => {
       this.name = name;
       this.age = age;
     }
-    toSIA() {
+    toSia() {
       return {
         constructor: "Person",
         args: [this.name, this.age],
