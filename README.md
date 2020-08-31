@@ -4,8 +4,14 @@ Sia - Binary serialisation and deserialisation with built-in compression
 
 ## Performance
 
-This repository contains a pure JS implementation of Sia, on our test data we are 3x slower than JSON,
-but serialized data (including type information for all entries) is 46% the size of JSON.
+This repository contains a pure JS implementation of Sia, on our test data we are 2.5-3x slower than JSON,
+but serialized data (including type information for all entries) is 48% the size of JSON. Sia is faster
+and smaller than MessagePack and CBOR.
+
+![Sia](./fast.png)
+
+I didn't compare this library with Avro or Protocol Buffers, Thrift or others, Sia is completetly schema-less,
+yet it preserves the types and reconstructs them.
 
 I'm working on more optimizations, both on the protocol, data exchange specification and the implementation.
 If you have any ideas how to improve this, feel free to post an issue or make a pull request.
