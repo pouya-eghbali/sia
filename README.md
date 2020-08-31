@@ -2,6 +2,12 @@
 
 Sia - Binary serialisation and deserialisation with built-in compression
 
+## Why?
+
+I need a fast schema-less serialization library that preserves the types and can code/decode custom types.
+I couldn't find one. At first I wanted to go with a JSON with types solution but it didn't work out, so
+I created my own.
+
 ## Performance
 
 This repository contains a pure JS implementation of Sia, on our test data we are 2.5-3x slower than JSON,
