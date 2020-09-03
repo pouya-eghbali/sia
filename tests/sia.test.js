@@ -24,6 +24,14 @@ test("Serialize floats", () => {
   expect(deserialized).toEqual(float);
 });
 
+test("Serialize boolean", () => {
+  const t = true;
+  const serialized = sia(t);
+  const deserialized = desia(serialized);
+  expect(typeof deserialized).toEqual("boolean");
+  expect(deserialized).toEqual(t);
+});
+
 test("Serialize regex", () => {
   const regex = /SIA+/i;
   const serialized = sia(regex);

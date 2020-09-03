@@ -4,19 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "benchmark": "node benchmark/benchmark.js"
   },
   "keywords": [],
   "author": "",
   "license": "Apache-2.0",
-  "dependencies": {
-    "shorter": "^0.3.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "cbor": "^5.1.0",
     "cli-table3": "^0.6.0",
     "convert-hrtime": "^3.0.0",
     "jest": "^26.4.2",
+    "lz4": "^0.6.3",
     "msgpack5": "^4.2.1",
     "node-fetch": "^2.6.0",
     "pretty-bytes": "^5.4.0"

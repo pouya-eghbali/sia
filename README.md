@@ -2,122 +2,144 @@
 
 Sia - Binary serialisation and deserialisation with built-in compression
 
+## Why?
+
+I need a fast schema-less serialization library that preserves the types and can code/decode custom types.
+I couldn't find one. At first I wanted to go with a JSON with types solution but it didn't work out, so
+I created my own.
+
 ## Performance
 
-This repository contains a pure JS implementation of Sia, on our test data we are 3x slower than JSON,
-but serialized data (including type information for all entries) is 46% the size of JSON.
+This repository contains a pure JS implementation of Sia, on our test data we are about 1.1x slower than JSON,
+but serialized data (including type information for all entries) is 40-75% smaller than JSON. Sia is faster
+and smaller than MessagePack and CBOR.
 
-I'm working on more optimizations, both on the protocol, data exchange specification and the implementation.
-If you have any ideas how to improve this, feel free to post an issue or make a pull request.
+Sia Lab, the next draft of Sia (WIP) is about %25 faster than JSON, %15 smaller. Sia Lab has a compact mode which
+is slower, but yields in a 50% smaller file, however using LZ4 is faster and yields smaller sizes. Compact mode
+makes sense for a language that has static data types, on JavaScript checking for byte size of numbers makes the
+code ~50% slower.
 
-## Protocol specification - draft 1
+![Sia](./fast.png)
+
+Tests are run on a 2.4 GHz 8-Core Intel Core i9-9980HK CPU (5 GHz while running the benchmarks)
+with 64 GB 2667 MHz DDR4 RAM. Node version 14.9.0, Mac OS 10.15.6. 1000 loops each serialization library,
+except for CBOR which is painfully slow. To run the benchmarks you can run
+`npm run benchmark` and to run the tests you can run `npm run test`. This takes about 15m on my laptop to complete.
+
+I didn't compare this library with Avro or Protocol Buffers, Thrift or others, Sia is completetly schema-less,
+yet it preserves the types and reconstructs them. I'm working on more optimizations, both on the protocol, data exchange specification and the implementation. If you have any ideas how to improve this, feel free to post an issue or
+make a pull request.
+
+## Protocol specification - draft 2
 
 This section describes the Sia binary data format. For each piece of item to be serialized,
-Sia serializer outputs one or many blocks, these blocks contain the information
-about the constructors of the items and arguments needed for reconstructing the items.
+Sia serializer outputs one or more blocks, these blocks contain the information
+about the constructors of the items and arguments needed for reconstructing them.
 
-At binary and data format level, Sia supports 4 types of blocks, they are:
+At binary and data format level, Sia supports 3 types of blocks, they are:
 
 1. String: To store strings
 2. Number: To store numeric values
-3. Constructor: To store constructor names
-4. Value: To store any other value
+3. Value: To store any other value
 
-String is the simplest of the blocks, with no block type signature, for example, `"Hello world!"` will be serialized as:
+A binary block type is planned.
 
-```
-Hello world!
-```
+Each block starts with a block tag, or a signature, this signature is a signed `int8`.
+This tag packs the type of the block, byte size of the block and the sign (for numbers):
 
-For other blocks a type signature is required, as an example for number `42` the Sia serialisation is:
-
-```
-NUMBER 42
+```JavaScript
+SIGNATURE = SIGN * (BLOCK_TYPE + BYTE_SIZE)
 ```
 
-Where `NUMBER` is a single byte defined in `SIA_CONSTANTS` enum.
-Please note white spaces aren't a part of the syntax, they're added here to enhance readability.
+Table below shows values for block types:
 
-Constructor blocks contain the name of the constructor, for example for a Date object we have:
+| Block  | Block type value |
+| ------ | ---------------- |
+| Value  | 0                |
+| Number | 10               |
+| String | 20               |
 
-```
-CONSTRUCTOR Date
-```
+### String block
 
-Finally, for a value block we have:
+String block is the simplest block in Sia. Byte size can be `1`, `2`, `4` or `8` depending
+on the length of the string:
 
-```
-VALUE constructorRef SEP argRefs
-```
+| More than or equal to | Less than      | Byte size | Name    |
+| --------------------- | -------------- | --------- | ------- |
+| 0                     | 2<sup>8</sup>  | 1         | uint8   |
+| 2<sup>8</sup>         | 2<sup>16</sup> | 2         | uint16  |
+| 2<sup>16</sup>        | 2<sup>32</sup> | 4         | uint32  |
+| 2<sup>32</sup>        | 2<sup>64</sup> | 8         | double  |
 
-Where VALUE and SEP are single bytes defined in `SIA.CONSTANTS`,
-constructorRef is the index of the constructor block in the serialized data,
-and argRefs is a list of indexes to other blocks separated by `SEP`.
-
-Each item is broken down into smaller pieces and is represented using only
-constructor, string, number and value blocks, each block is separated from others
-by a `SIA.TERMINATE` byte.
-
-A Sia binary representation of `[42, 42, "Hello World"]` is:
+Block tag is `10 + BYTE_SIZE`, block structure is:
 
 ```
-CONSTRUCTOR Array TERMINATE
-NUMBER 42 TERMINATE
-Hello World TERMINATE
-VALUE \0 SEP \1 SEP \1 SEP \2
+[10 + byte size][string length][      string      ]
+<---- int8 ----><- byte size -><- length x uint8 ->
 ```
 
-Reading the above line by line (or block by block):
+Where `10` is the block type for string blocks
 
-1. A constructor block of type `Array` is defined
-2. A number block with value `42` is defined
-3. A string block with value `Hello World` is defined
-4. A value block, with `constructorRef = 0` is defined, where `0` refers to the `CONSTRUCTOR Array` block,
-it contains three args: `\1`, `\1` and `\2`, which are references to other blocks.
+### Number block
 
-As you have noticed, a value does not get serialized twice if it exists in the data twice, instead
-it gets serialized once, and then gets referenced twice.
+For number block, byte size depends on the size of the number, with one exception.
+Floats always have byte size `8`, for integers refer to table below:
 
-If we summarize the above:
+| More than or equal to | Less than      | Byte size | Name    |
+| --------------------- | -------------- | --------- | ------- |
+| 0                     | 2<sup>8</sup>  | 1         | uint8   |
+| 2<sup>8</sup>         | 2<sup>16</sup> | 2         | uint16  |
+| 2<sup>16</sup>        | 2<sup>32</sup> | 4         | uint32  |
+| 2<sup>32</sup>        | 2<sup>64</sup> | 8         | double  |
 
-1. Each Sia binary is made of several blocks, blocks are separated by `SIA_CONSTANTS.TERMINATE`.
-2. There are 4 types of blocks: Number, String, Value and Constructor.
-3. String blocks don't have a type indicator, they contain the string value.
-4. Number blocks start with `SIA_CONSTANTS.NUMBER` then immediately a string representation of the number (eg. 1 instead of \1).
-5. Constructor blocks start with `SIA_CONSTANTS.CONSTRUCTOR` then immediately a string representation of the constructor name
-6. Value blocks start with `SIA_CONSTANTS.VALUE`, then immediately a constructor reference, then a `SIA_CONSTANTS.SEP`, and
-then a `SIA_CONSTANTS.SEP` separated list of argument references.
-7. Each reference, is the index of another block in the serialized data, this value is numeric (eg. \1 char instead of 1).
+Block tag is `20 + BYTE_SIZE`, block structure is:
 
-## Sia data exchange protocol specification - draft 1
+```
+[sign * (20 + byte size)][    number   ]
+<-------- int8 ---------><- byte size ->
+```
+
+Where `20` is the block type for number blocks
+
+### Value block
+
+Value blocks are very different compared to the other blocks. Sia does not preserve
+the structure of your data, unlike JSON, there is no structure, Sia stores enough info
+to recreate your data. It is the purpose of the value block to store this information.
+This block contains a constructor reference, and an argument reference list.
+
+Before we continue, let's see what are the constructor and argument references. In order
+to serialize an item with Sia, we need to reduce it to a number, or a string
+(buffer / bin) is planned, these are stored in their corresponding block, and their block
+number is referenced in the value block. If a string or a number block with the value we
+want already exists and is already serialized, it won't get serialized again. This saves
+us some space and computation power.
+
+For a value block, assuming `N` is the maximum of all references and the (argument count + 1),
+we can find the byte size depending on `N`, according to the table below:
+
+| More than or equal to | Less than      | Byte size | Name    |
+| --------------------- | -------------- | --------- | ------- |
+| 0                     | 2<sup>8</sup>  | 1         | uint8   |
+| 2<sup>8</sup>         | 2<sup>16</sup> | 2         | uint16  |
+| 2<sup>16</sup>        | 2<sup>32</sup> | 4         | uint32  |
+| 2<sup>32</sup>        | 2<sup>64</sup> | 8         | double  |
+
+Block tag is `0 + BYTE_SIZE`, block structure is:
+
+```
+[0 + byte size][argument count][constructor ref][        argument refs         ]
+<--- int8 ----><-- byte size -><-- byte size --><- argument count x byte size ->
+```
+
+Where `0` is the block type for value blocks
+
+## Sia data exchange protocol specification - draft 2
 
 Now that we've defined the Sia binary format, we need to define the data exchange protocol,
 in other words we should agree how we're going to serialize common data types.
 
-First we should agree on the symbols, here are the ones chosen for this draft:
-
-| Symbol name | Byte value |
-| ----------- | ---------- |
-| TERMINATE   | 0          |
-| SEP         | 1          |
-| CONSTRUCTOR | 2          |
-| VALUE       | 3          |
-| NUMBER      | 4          |
-
-References and certain integers (for example a unix timestamp) are represented as binary, encoded in base 254
-and shifted by 2 in order to escape the `TERMINATE` and `SEP`:
-
-```JavaScript
-function encodeNumber(num) {
-  const result = [];
-  while (num > 0) {
-    const R = num % 254;
-    result.push(R + 2);
-    num = (num - R) / 254;
-  }
-  return String.fromCharCode(...result);
-}
-```
+References and numbers are represented as binary, all strings are utf8.
 
 The Sia data exchange protocol supports 9 basic data types, two of which have their own dedicated block types:
 
@@ -126,12 +148,14 @@ The Sia data exchange protocol supports 9 basic data types, two of which have th
 
 The rest are value blocks:
 
-| Constructor | Arguments |
-| ----------- | --------- |
-| Array       | `SEP` separated list of block references |
-| Boolean     | `0` for false, `1` for true (encoded number) |
-| Date        | Numeric value of unix timestamp (encoded number) |
-| Null        | No arguments |
-| Object      | `SEP` separated list of block references in form of `key1 value1 key2 value2...` |
-| Regex       | `SEP` separated list of two items: source and flags |
-| Undefined   | No arguments |
+| Constructor | Arguments                                                          |
+| ----------- | ------------------------------------------------------------------ |
+| Array       | Refs to other blocks, can be any of value, string or number blocks |
+| Boolean     | `"false"` for `false`, `"true"` for `true` *                       |
+| Date        | Numeric value of unix timestamp                                    |
+| Null        | No arguments                                                       |
+| Object      | Regs to other blocks, in form of `key1 value1 key2 value2...`      |
+| Regex       | Refs to two other blocks: source and flags                         |
+| Undefined   | No arguments                                                       |
+
+* Using `0` for `false` and `1` for `true` increases the size significantly.

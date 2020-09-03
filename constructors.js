@@ -1,11 +1,9 @@
-const { decodeNumber } = require("./utils");
-
 module.exports = {
   Regex(source, flags) {
     return new RegExp(source, flags);
   },
   Date(value) {
-    return new Date(decodeNumber(value));
+    return new Date(value);
   },
   Array(...args) {
     return args;
