@@ -1,6 +1,7 @@
 # Sia
 
-Sia - Binary serialisation and deserialisation with built-in compression
+Sia - Binary serialisation and deserialisation with built-in compression. You can consider Sia a strongly typed
+domain specific binary language for describing data. Sia preserves data types and supports custom ones.
 
 ## Why?
 
