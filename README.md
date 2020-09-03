@@ -23,7 +23,7 @@ after encode and decompress before decode, if size matters, it'll still be faste
 Tests are run on a 2.4 GHz 8-Core Intel Core i9-9980HK CPU (5 GHz while running the benchmarks)
 with 64 GB 2667 MHz DDR4 RAM. Node version 14.9.0, Mac OS 10.15.6. 1000 loops each serialization library,
 except for CBOR which is painfully slow. To run the benchmarks you can run
-`npm run benchmark` and to run the tests you can run `npm run test`. This takes about 15m on my laptop to complete.
+`npm run benchmark` and to run the tests you can run `npm run test`. This takes about 40m on my laptop to complete.
 
 I didn't compare this library with Avro or Protocol Buffers, Thrift or others, Sia is completetly schema-less,
 yet it preserves the types and reconstructs them, it costs a lot to figure out the schema, keys and data types and to
