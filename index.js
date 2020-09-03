@@ -1,40 +1,68 @@
 const builtinConstructors = require("./constructors");
 
-const SIA_BLOCKS = {
-  VALUE: 0,
-  NUMBER: 10,
-  STRING: 20,
+const SIA_TYPES = {
+  null: 0,
+  undefined: 1,
+  uint8: 2,
+  uint16: 3,
+  uint32: 4,
+  uint64: 5,
+  uint128: 6,
+  uintn: 7,
+  int8: 8,
+  int16: 9,
+  int32: 10,
+  int64: 11,
+  int128: 12,
+  intn: 13,
+  float8: 14,
+  float16: 15,
+  float32: 16,
+  float64: 17,
+  float128: 18,
+  floatn: 19,
+  uint8_arr: 20,
+  uint16_arr: 21,
+  uint32_arr: 22,
+  uint64_arr: 23,
+  uint128_arr: 24,
+  uint8_hash: 25,
+  uint16_hash: 26,
+  uint32_hash: 27,
+  uint64_hash: 28,
+  uint128_hash: 29,
+  uint8_object: 30,
+  uint16_object: 31,
+  uint32_object: 32,
+  uint64_object: 33,
+  uint128_object: 34,
+  uint8_set: 35,
+  uint16_set: 36,
+  uint32_set: 37,
+  uint64_set: 38,
+  uint128_set: 39,
+  string: 40,
+  raw: 41,
+  true: 42,
+  false: 43,
+  date: 44,
+  date64: 45,
+  constructor: 46,
+  call: 47,
 };
-
-const Null = {
-  constructor: "Null",
-  args: [],
-};
-
-const Undefined = {
-  constructor: "Undefined",
-  args: [],
-};
-
-const sdbm = (arr) => arr.reduce((h, v) => v + (h << 6) + (h << 16) - h, 0);
 
 class Sia {
   constructor(data) {
     this.data = data;
     this.map = new Map();
     this.buffer = Buffer.alloc(33554432); //32mb TODO
-    this.offset = 0;
+    this.offset = 8;
     this.blocks = 0;
   }
-  nToBytes(n) {
-    if (n < 256) return 1;
-    if (n < 65536) return 2;
-    if (n < 4294967295) return 4;
-    return 8;
-  }
-  writeUTF8(part, length) {
-    this.buffer.write(part, this.offset, length);
-    this.offset += length;
+  writeUTF8(part) {
+    const length = this.buffer.write(part, this.offset + 8);
+    this.buffer.writeDoubleLE(length, this.offset);
+    this.offset += length + 8;
   }
   writeUInt8(number) {
     this.buffer.writeUInt8(number, this.offset);
@@ -48,31 +76,29 @@ class Sia {
     this.buffer.writeUInt16LE(number, this.offset);
     this.offset += 2;
   }
+  writeInt16(number) {
+    this.buffer.writeInt16LE(number, this.offset);
+    this.offset += 2;
+  }
   writeUInt32(number) {
     this.buffer.writeUInt32LE(number, this.offset);
+    this.offset += 4;
+  }
+  writeInt32(number) {
+    this.buffer.writeInt32LE(number, this.offset);
     this.offset += 4;
   }
   writeDouble(number) {
     this.buffer.writeDoubleLE(number, this.offset);
     this.offset += 8;
   }
-  writeNumber(byteSize, number) {
-    if (byteSize == 1) return this.writeUInt8(number);
-    if (byteSize == 2) return this.writeUInt16(number);
-    if (byteSize == 4) return this.writeUInt32(number);
-    if (byteSize == 8) return this.writeDouble(number);
-  }
   addBlock() {
     return this.blocks++;
   }
   addString(string) {
     if (!this.map.has(string)) {
-      const { length } = string;
-      const byteSize = this.nToBytes(length);
-      const blockTag = SIA_BLOCKS.STRING + byteSize;
-      this.writeInt8(blockTag);
-      this.writeNumber(byteSize, length);
-      this.writeUTF8(string, length);
+      this.writeUInt8(SIA_TYPES.string);
+      this.writeUTF8(string);
       const block = this.addBlock();
       this.map.set(string, block);
       return block;
@@ -80,71 +106,73 @@ class Sia {
     return this.map.get(string);
   }
   addNumber(number) {
+    //if (Number.isInteger(number)) return this.addInteger(number);
+    return this.addFloat(number);
+  }
+  addInteger(number) {
     if (!this.map.has(number)) {
-      const isInt = Number.isInteger(number);
-      const sign = Math.sign(number) || 1;
-      const byteSize = isInt ? this.nToBytes(number) : 8;
-      const blockTag = (SIA_BLOCKS.NUMBER + byteSize) * sign;
-      this.writeInt8(blockTag);
-      this.writeNumber(byteSize, sign * number);
+      this.writeUInt8(SIA_TYPES.float64);
+      this.writeDouble(number);
       const block = this.addBlock();
       this.map.set(number, block);
       return block;
     }
     return this.map.get(number);
   }
-  addValue(args, maxN, argCount) {
-    // this hash algo is not reliable, it increases the
-    // encode time but decreases the decode time
-    // in my opinion it isn't worth it
-    //const hash = sdbm(args.slice(1), argCount);
-    //if (!this.map.has(hash)) {
-    const byteSize = this.nToBytes(maxN);
-    const blockTag = SIA_BLOCKS.VALUE + byteSize;
-    this.writeInt8(blockTag);
-    this.writeNumber(byteSize, argCount);
-    for (const arg of args) this.writeNumber(byteSize, arg);
+  addFloat(number) {
+    if (!this.map.has(number)) {
+      this.writeUInt8(SIA_TYPES.float64);
+      this.writeDouble(number);
+      const block = this.addBlock();
+      this.map.set(number, block);
+      return block;
+    }
+    return this.map.get(number);
+  }
+  addObject(entries, length) {
+    this.writeUInt8(SIA_TYPES.uint64_object);
+    this.writeDouble(length);
+    for (const item of entries) this.writeDouble(item);
     const block = this.addBlock();
-    //  this.map.set(hash, block);
     return block;
-    //}
-    //return this.map.get(hash);
+  }
+  addArray(items, length) {
+    this.writeUInt8(SIA_TYPES.uint64_arr);
+    this.writeDouble(length);
+    for (const item of items) this.writeDouble(item);
+    const block = this.addBlock();
+    return block;
+  }
+  addBoolean(bool) {
+    const type = bool ? SIA_TYPES.true : SIA_TYPES.false;
+    this.writeUInt8(type);
+    const block = this.addBlock();
+    return block;
   }
   serializeItem(item) {
     const typeOf = typeof item;
     if (typeOf === "string") return this.addString(item);
     if (typeOf === "number") return this.addNumber(item);
+    if (typeOf === "boolean") return this.addBoolean(item);
     if (item && item.constructor === Object) {
-      const constructor = this.serializeItem("Object");
-      const entries = [constructor];
-      let length = 1,
-        max = constructor;
+      let length = 0;
+      for (const _ in item) length += 2;
+      const entries = new Array(length);
+      let i = 0;
       for (const key in item) {
-        const keyRef = this.serializeItem(key);
-        if (keyRef > max) max = keyRef;
-        const valueRef = this.serializeItem(item[key]);
-        if (valueRef > max) max = valueRef;
-        length += 2;
-        entries.push(keyRef, valueRef);
+        entries[i++] = this.addString(key);
+        entries[i++] = this.serializeItem(item[key]);
       }
-      if (length > max) max = length;
-      return this.addValue(entries, max, length);
+      return this.addObject(entries, length / 2);
     }
     if (Array.isArray(item)) {
-      const constructor = this.serializeItem("Array");
-      const args = [constructor];
-      let length = 1,
-        max = constructor;
-      for (const value of item) {
-        const valueRef = this.serializeItem(value);
-        args.push(valueRef);
-        length++;
-        if (valueRef > max) max = valueRef;
-      }
-      if (length > max) max = length;
-      return this.addValue(args, max, length);
+      const { length } = item;
+      const items = new Array(length);
+      let i = 0;
+      for (const m of item) items[i++] = this.serializeItem(m);
+      return this.addArray(items, length);
     }
-    const { constructor, args = [] } =
+    /* const { constructor, args = [] } =
       item && item.toSia === "function" ? item.toSia() : this.itemtoSia(item);
     const constructorRef = this.serializeItem(constructor);
     const serializedArgs = [constructorRef];
@@ -157,7 +185,7 @@ class Sia {
       serializedArgs.push(argRef);
     }
     if (length > max) max = length;
-    return this.addValue(serializedArgs, max, length);
+    return this.addValue(serializedArgs, max, length); */
   }
   itemtoSia(item) {
     if (item === null) return Null;
@@ -180,50 +208,60 @@ class Sia {
   }
   serialize() {
     this.serializeItem(this.data);
+    this.buffer.writeDoubleLE(this.blocks - 1);
     return this.buffer.slice(0, this.offset);
   }
 }
 
 class DeSia {
   constructor(buffer) {
-    this.constructorMap = new Map();
-    this.valueMap = new Map();
     this.buffer = buffer;
-    this.offset = 0;
-    this.length = this.buffer.length;
+    this.totalBlocks = this.buffer.readDoubleLE();
+    this.map = new Array(this.totalBlocks);
+    this.offset = 8;
     this.currentBlock = 0;
   }
   readBlock() {
-    const blockTag = this.readInt8(this.offset);
-    const { blockType, byteSize, sign } = this.getBlockInfo(blockTag);
-    const { STRING, VALUE, NUMBER } = SIA_BLOCKS;
-    if (blockType == STRING) {
-      const length = this.readNumber(byteSize);
+    const blockType = this.readUInt8();
+    if (blockType == SIA_TYPES.string) {
+      const length = this.readDouble();
       const string = this.readUTF8(length);
-      this.valueMap.set(this.currentBlock, string);
-      this.currentBlock++;
+      this.map[this.currentBlock++] = string;
       return string;
-    } else if (blockType == NUMBER) {
-      const unsignedNumber = this.readNumber(byteSize);
-      const number = sign * unsignedNumber;
-      this.valueMap.set(this.currentBlock, number);
-      this.currentBlock++;
+    } else if (blockType == SIA_TYPES.float64) {
+      const number = this.readDouble();
+      this.map[this.currentBlock++] = number;
       return number;
-    } else if (blockType == VALUE) {
-      const argCount = this.readNumber(byteSize) - 1;
-      const constructorRef = this.readNumber(byteSize);
-      const constructorName = this.valueMap.get(constructorRef);
-      const constructor = this.constructors[constructorName];
-      const args = new Array(argCount);
-      for (let i = 0; i < argCount; i++) {
-        const argRef = this.readNumber(byteSize);
-        const arg = this.valueMap.get(argRef);
-        args[i] = arg;
+    } else if (blockType == SIA_TYPES.uint64_arr) {
+      const length = this.readDouble();
+      const arr = new Array(length);
+      let i = 0;
+      while (i < length) {
+        const ref = this.readDouble();
+        const value = this.map[ref];
+        arr[i++] = value;
       }
-      const value = constructor(...args);
-      this.valueMap.set(this.currentBlock, value);
+      this.map[this.currentBlock++] = arr;
+      return arr;
+    } else if (blockType == SIA_TYPES.uint64_object) {
+      const length = this.readDouble();
+      const object = {};
+      let i = 0;
+      while (i < length) {
+        const kRef = this.readDouble();
+        const vRef = this.readDouble();
+        const key = this.map[kRef];
+        const val = this.map[vRef];
+        object[key] = val;
+        i += 1;
+      }
+      this.map[this.currentBlock++] = object;
+    } else if (blockType == SIA_TYPES.false) {
       this.currentBlock++;
-      return value;
+      return false;
+    } else if (blockType == SIA_TYPES.true) {
+      this.currentBlock++;
+      return true;
     }
   }
   getBlockInfo(blockTag) {
@@ -277,7 +315,7 @@ class DeSia {
   deserialize(constructors) {
     this.constructors = constructors;
     let lastBlock;
-    while (this.offset < this.length - 1) lastBlock = this.readBlock();
+    while (this.currentBlock < this.totalBlocks) lastBlock = this.readBlock();
     return lastBlock;
   }
 }
