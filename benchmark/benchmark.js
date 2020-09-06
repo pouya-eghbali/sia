@@ -74,25 +74,26 @@ const runTests = (data) => {
     (buf) => JSON.parse(decompress(buf).toString()),
     "JSON + LZ4"
   ); */
-  /* bench(sia, desia, "Sia"); */
+  bench(sia, desia, "Sia");
   bench(siaLab, desiaLab, "Sia Lab");
+  /*
   bench(
     (data) => compress(siaLab(data)),
-    (data) => desiaLab(decompress(data)),
+    (data) => {},
     "Sia Lab + LZ4"
-  );
+  ); */
   /* bench(
     (data) => compress(sia(data)),
     (data) => desia(decompress(data)),
     "Sia + LZ4"
   );*/
-  bench(msgpack.encode, msgpack.decode, "MessagePack");
+  /* bench(msgpack.encode, msgpack.decode, "MessagePack");
   bench(
     (data) => cbor.encodeOne(data, { highWaterMark: 33554432 }),
     cbor.decode,
     "CBOR",
     10 // CBOR is horribly slow
-  );
+  ); */
   console.log();
 
   const jsonResults = results.filter(({ name }) => name == "JSON").pop();

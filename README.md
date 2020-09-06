@@ -9,6 +9,12 @@ I need a fast schema-less serialization library that preserves the types and can
 I couldn't find one. At first I wanted to go with a JSON with types solution but it didn't work out, so
 I created my own.
 
+## Draft 4 (WIP)
+
+Draft 4 supports streaming, which makes Sia 2-2.5x faster than JSON over network!
+
+![Sia](./fast.stream.png)
+
 ## Performance
 
 This repository contains a pure JS implementation of Sia, on our test data we are 20 to 25% faster than JSON

@@ -1,6 +1,6 @@
 node_modules
-lab
 processed.txt
 isolate-*
 .DS_Store
 *.cpuprofile
+*.ignore
