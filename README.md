@@ -15,10 +15,16 @@ Draft 4 supports streaming, which makes Sia 2-2.5x faster than JSON over network
 
 ![Sia](./fast.stream.png)
 
+## Draft 5 (WIP)
+
+Draft 5 adds logics and code blocks so you can have Sia generate your data. This will be suitable as a compile
+target, if the entire purpose of generating a piece of data is sending it over network to a RPC or something
+else, it does not make much sense to first generate then serialize when the deserializer can generate it for you.
+
 ## Performance
 
 This repository contains a pure JS implementation of Sia, on our test data we are 20 to 25% faster than JSON
-and serialized data (including type information for all entries) is ~15% smaller than JSON. Sia is faster
+and serialized data (including type information for all entries) is ~50% smaller than JSON. Sia is faster
 and smaller than MessagePack and CBOR. Sia can be extremely compact (50-75% smaller than JSON), but it's costly
 on dynamically typed languages like JavaScript. On JavaScript checking for byte size of numbers makes the
 code +50% slower. On dynamically typed languages it's better and faster to just use LZ4 to compress the data
