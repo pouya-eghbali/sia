@@ -3,6 +3,8 @@ const convertHrtime = require("convert-hrtime");
 const { DeSia, desia } = require("..");
 const { DeSia: DesiaLab, desia: desiaLab } = require("../lab");
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const benchmarkJSON = () =>
   new Promise((resolve) => {
     const start = process.hrtime();
@@ -57,7 +59,7 @@ const benchmarkSiaL = () =>
     });
   });
 
-const benchmarkSiaLS = () =>
+const benchmarkSiaLS = (n) =>
   new Promise((resolve) => {
     const start = process.hrtime();
     const deserializer = new DesiaLab(null, (block) => {
@@ -65,21 +67,29 @@ const benchmarkSiaLS = () =>
       ws.close();
       resolve(convertHrtime(end).milliseconds);
     });
-    const ws = new WebSocket("ws://localhost:8080/SIALS");
+    const ws = new WebSocket("ws://localhost:8080/SIALS/" + n);
 
     ws.on("message", function incoming(data) {
-      deserializer.deserializeBlocks(data, 1000);
+      deserializer.deserializeBlocks(data, n);
     });
   });
 
 const runBenchmarks = async () => {
-  await benchmarkJSON().then((ms) => console.log(`JSON took ${ms} ms`));
-  await benchmarkSia().then((ms) => console.log(`Sia took ${ms} ms`));
-  await benchmarkSiaS().then((ms) => console.log(`Sia Stream took ${ms} ms`));
-  await benchmarkSiaL().then((ms) => console.log(`Sia Lab took ${ms} ms`));
-  await benchmarkSiaLS().then((ms) =>
-    console.log(`Sia Lab Stream took ${ms} ms`)
-  );
+  await benchmarkJSON()
+    .then(Math.round)
+    .then((ms) => console.log(`JSON took ${ms} ms`));
+  await benchmarkSia()
+    .then(Math.round)
+    .then((ms) => console.log(`Sia took ${ms} ms`));
+  await benchmarkSiaS()
+    .then(Math.round)
+    .then((ms) => console.log(`Sia Stream took ${ms} ms`));
+  await benchmarkSiaL()
+    .then(Math.round)
+    .then((ms) => console.log(`Sia Lab took ${ms} ms`));
+  await benchmarkSiaLS(4000)
+    .then(Math.round)
+    .then((ms) => console.log(`Sia Lab Stream took ${ms} ms`));
 };
 
 runBenchmarks();

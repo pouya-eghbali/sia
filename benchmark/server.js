@@ -33,7 +33,7 @@ SIALWS.on("connection", function connection(ws) {
 });
 
 SIALSWS.on("connection", function connection(ws) {
-  new SiaLab(data, (buf) => ws.send(buf), 1000).serialize();
+  new SiaLab(data, (buf) => ws.send(buf), ws.n).serialize();
 });
 
 server.on("upgrade", function upgrade(request, socket, head) {
@@ -55,8 +55,9 @@ server.on("upgrade", function upgrade(request, socket, head) {
     SIALWS.handleUpgrade(request, socket, head, function done(ws) {
       SIALWS.emit("connection", ws, request);
     });
-  } else if (pathname === "/SIALS") {
+  } else if (pathname.startsWith("/SIALS")) {
     SIALSWS.handleUpgrade(request, socket, head, function done(ws) {
+      ws.n = parseInt(pathname.replace("/SIALS/", ""));
       SIALSWS.emit("connection", ws, request);
     });
   } else {

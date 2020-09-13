@@ -211,6 +211,26 @@ class Sia {
     return block;
   }
   serializeItem(item) {
+    if (item && item.constructor === Object) {
+      this.startObject();
+      this.addBlock();
+      for (const key in item) {
+        this.pushObject(this.addString(key));
+        this.addBlock();
+        this.pushObject(this.serializeItem(item[key]));
+        this.addBlock();
+      }
+      return this.endObject();
+    }
+    if (Array.isArray(item)) {
+      this.startArray(item.length);
+      this.addBlock();
+      for (const m of item) {
+        this.pushArray(this.serializeItem(m));
+        this.addBlock();
+      }
+      return this.endArray();
+    }
     const type = typeOf(item);
     switch (type) {
       case `[object String]`:

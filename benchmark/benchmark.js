@@ -7,6 +7,7 @@ const convertHrtime = require("convert-hrtime");
 const LZ4 = require("lz4");
 const { sia, desia } = require("..");
 const { sia: siaLab, desia: desiaLab } = require("../lab");
+const { async } = require("nodemark/lib/benchmark");
 
 const compress = (input) => {
   const output = Buffer.alloc(LZ4.encodeBound(33554432));
@@ -34,26 +35,26 @@ const runTests = (data) => {
   });
   const results = [];
   const sum = (a, b) => a + b;
-  const bench = (serialize, deserialize, name, n = 1000) => {
+  const bench = (serialize, deserialize, name, n = 100) => {
     console.log(`Running benchmarks for ${name}, ${n} loops`);
     const serTimes = [];
     const deserTimes = [];
     let serialized;
     while (n--) {
-      const serstart = process.hrtime();
+      const serstart = process.cpuUsage();
       serialized = serialize(data);
-      const serend = process.hrtime(serstart);
-      const deserstart = process.hrtime();
+      const serend = process.cpuUsage(serstart);
+      const deserstart = process.cpuUsage();
       const result = deserialize(serialized);
-      const deserend = process.hrtime(deserstart);
-      serTimes.push(convertHrtime(serend).milliseconds);
-      deserTimes.push(convertHrtime(deserend).milliseconds);
+      const deserend = process.cpuUsage(deserstart);
+      serTimes.push(serend.user / 1000);
+      deserTimes.push(deserend.user / 1000);
     }
-    const averageSer = serTimes.reduce(sum) / serTimes.length;
-    const averageDeser = deserTimes.reduce(sum) / deserTimes.length;
+    const minSer = Math.min(...serTimes);
+    const minDeser = Math.min(...deserTimes);
     const byteSize = Buffer.from(serialized).length;
-    const serTime = Math.round(averageSer);
-    const deserTime = Math.round(averageDeser);
+    const serTime = Math.round(minSer);
+    const deserTime = Math.round(minDeser);
     const total = serTime + deserTime;
     results.push({
       name,
@@ -68,52 +69,64 @@ const runTests = (data) => {
     (data) => Buffer.from(JSON.stringify(data)),
     (buf) => JSON.parse(buf.toString()),
     "JSON"
-  );
+  ); /* 
   bench(
     (data) => compress(Buffer.from(JSON.stringify(data))),
     (buf) => JSON.parse(decompress(buf).toString()),
     "JSON + LZ4"
-  );
-  bench(sia, desia, "Sia");
+  ); */
+  //bench(sia, desia, "Sia");
   bench(siaLab, desiaLab, "Sia Lab");
-  bench(
+  /* bench(
     (data) => compress(siaLab(data)),
     (data) => desiaLab(decompress(data)),
     "Sia Lab + LZ4"
-  );
+  ); */
   /* bench(
     (data) => compress(sia(data)),
     (data) => desia(decompress(data)),
     "Sia + LZ4"
   );*/
-  bench(msgpack.encode, msgpack.decode, "MessagePack");
+  /* bench(msgpack.encode, msgpack.decode, "MessagePack");
   bench(
     (data) => cbor.encodeOne(data, { highWaterMark: 33554432 }),
     cbor.decode,
     "CBOR",
     10 // CBOR is horribly slow
-  );
+  ); */
   console.log();
 
   const jsonResults = results.filter(({ name }) => name == "JSON").pop();
-  const rows = results.map(({ name, serTime, deserTime, total, byteSize }) => [
-    name,
-    `${serTime}ms`,
-    `${deserTime}ms`,
-    `${total}ms`,
-    Math.round((100 * total) / jsonResults.total) / 100,
-    prettyBytes(byteSize),
-    Math.round((100 * byteSize) / jsonResults.byteSize) / 100,
+  const rows = results.map((stat) => [
+    stat.name,
+    `${stat.serTime}ms`,
+    `${stat.deserTime}ms`,
+    `${stat.total}ms`,
+    Math.round((100 * stat.total) / jsonResults.total) / 100,
+    prettyBytes(stat.byteSize),
+    Math.round((100 * stat.byteSize) / jsonResults.byteSize) / 100,
   ]);
   table.push(...rows);
   console.log(table.toString());
 };
 
-const fileURL =
-  "https://github.com/json-iterator/test-data/raw/master/large-file.json";
+const dataset = [
+  {
+    title: "Large file",
+    json:
+      "https://github.com/json-iterator/test-data/raw/master/large-file.json",
+  },
+];
 
 console.log("Downloading the test data");
 
-fetch(fileURL)
-  .then((resp) => resp.json())
-  .then(runTests);
+const start = async () => {
+  for (const { title, json } of dataset) {
+    console.log(`Running tests on "${title}"`);
+    await fetch(json)
+      .then((resp) => resp.json())
+      .then(runTests);
+  }
+};
+
+start();

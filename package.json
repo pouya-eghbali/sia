@@ -10,15 +10,26 @@
   "keywords": [],
   "author": "",
   "license": "Apache-2.0",
-  "dependencies": {},
+  "dependencies": {
+    "buffer": "^5.6.0",
+    "donhash": "^1.0.3",
+    "fast-buffer": "0.0.1",
+    "ieee-float": "^0.6.0",
+    "js-xxhash": "^1.0.4",
+    "lru-cache": "^6.0.0",
+    "node-cache": "^5.1.2"
+  },
   "devDependencies": {
+    "benchmark": "^2.1.4",
     "cbor": "^5.1.0",
     "cli-table3": "^0.6.0",
     "convert-hrtime": "^3.0.0",
     "jest": "^26.4.2",
     "lz4": "^0.6.3",
+    "microtime": "^3.0.0",
     "msgpack5": "^4.2.1",
     "node-fetch": "^2.6.1",
+    "nodemark": "^0.3.0",
     "pretty-bytes": "^5.4.0",
     "ws": "^7.3.1"
   }
