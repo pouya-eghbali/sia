@@ -35,7 +35,7 @@ const runTests = (data) => {
   });
   const results = [];
   const sum = (a, b) => a + b;
-  const bench = (serialize, deserialize, name, n = 100) => {
+  const bench = (serialize, deserialize, name, n = 1000) => {
     console.log(`Running benchmarks for ${name}, ${n} loops`);
     const serTimes = [];
     const deserTimes = [];
@@ -76,7 +76,7 @@ const runTests = (data) => {
     "JSON + LZ4"
   ); */
   //bench(sia, desia, "Sia");
-  bench(siaLab, desiaLab, "Sia Lab");
+  bench((data) => siaLab(data, null, 0, 3, 14800000), desiaLab, "Sia Lab");
   /* bench(
     (data) => compress(siaLab(data)),
     (data) => desiaLab(decompress(data)),

@@ -65,4 +65,6 @@ module.exports = {
   end: 63,
   sin: 64,
   mul: 65,
+  while: 66,
+  end_while: 67,
 };
