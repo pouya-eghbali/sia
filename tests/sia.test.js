@@ -1,4 +1,6 @@
 const { sia, desia } = require("..");
+const fetch = require("node-fetch");
+const deepEqual = require("deep-equal");
 
 test("Serialize dates", () => {
   const date = new Date();
@@ -61,3 +63,16 @@ test("Serialize objects", () => {
   const deserialized = desia(serialized);
   expect(deserialized).toEqual(object);
 });
+
+test(
+  "Serialize huge sample data",
+  async () => {
+    const data = await fetch(
+      "https://github.com/json-iterator/test-data/raw/master/large-file.json"
+    ).then((resp) => resp.json());
+    const serialized = sia(data);
+    const deserialized = desia(serialized);
+    expect(deepEqual(deserialized, data)).toBe(true);
+  },
+  60 * 1000
+);
