@@ -1,5 +1,7 @@
 # Sia Specs
 
+WIP
+
 This document contains information about the Sia serialization protocol
 and also the required features of the implementations.
 
