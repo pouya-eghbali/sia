@@ -79,6 +79,28 @@ test("Serialize undefined", () => {
   expect(deserialized).toEqual(object);
 });
 
+test("Serialize custom classes", () => {
+  class Person {
+    constructor(name) {
+      this.name = name;
+    }
+  }
+  const constructors = [
+    {
+      constructor: Person,
+      name: "Person",
+      args: (item) => [item.name],
+      build: (name) => new Person(name),
+    },
+  ];
+  const pouya = new Person("Pouya");
+  const sia = new Sia({ constructors });
+  const desia = new DeSia({ constructors });
+  const deserialized = desia.deserialize(sia.serialize(pouya));
+  expect(deserialized).toBeInstanceOf(Person);
+  expect(deserialized.name).toEqual("Pouya");
+});
+
 test("Throw on unsupported type", () => {
   const buf = Buffer.from([0x42]);
   expect(() => desia(buf)).toThrow("Unsupported type: 66");
@@ -91,17 +113,19 @@ test("Throw on huge ref", () => {
 
 test("Stream", () => {
   const data = { abc: { xyz: 100, pi: 3.14 }, floats: [1.1, 2.2, 3.3] };
-  const desia = new DeSia({}, (deserialized) => {
-    expect(deserialized).toEqual(data);
+  const desia = new DeSia({
+    onEnd(deserialized) {
+      expect(deserialized).toEqual(data);
+    },
   });
-  const sia = new Sia(
-    (buf) => {
+  const sia = new Sia({
+    onBlocksReady(buf) {
       desia.deserializeBlocks(buf, 2);
     },
-    2,
-    1,
-    4000
-  );
+    size: 4000,
+    hintSize: 1,
+    nBlocks: 2,
+  });
   sia.serialize(data);
 });
 

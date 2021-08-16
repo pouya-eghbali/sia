@@ -5,7 +5,13 @@ const { toString } = Object.prototype;
 const typeOf = (item) => toString.call(item);
 
 class Sia {
-  constructor(onBlocksReady, nBlocks = 1, hintSize = 2, size = 33554432) {
+  constructor({
+    onBlocksReady,
+    nBlocks = 1,
+    hintSize = 2,
+    size = 33554432,
+    constructors = builtinConstructors,
+  } = {}) {
     this.strMap = {};
     this.map = new Map();
     this.buffer = Buffer.alloc(size);
@@ -16,6 +22,7 @@ class Sia {
     this.onBlocksReady = onBlocksReady;
     this.nBlocks = nBlocks;
     this.bufferedBlocks = 0;
+    this.constructors = constructors;
   }
   reset() {
     this.strMap = {};
@@ -186,12 +193,16 @@ class Sia {
         return this.addBoolean(item);
 
       case `[object Object]`: {
-        this.startObject();
-        for (const key in item) {
-          this.addString(key);
-          this.serializeItem(item[key]);
+        if (item.constructor === Object) {
+          this.startObject();
+          for (const key in item) {
+            this.addString(key);
+            this.serializeItem(item[key]);
+          }
+          return this.endObject();
+        } else {
+          return this.addCustomType(item);
         }
-        return this.endObject();
       }
 
       case `[object Array]`: {
@@ -207,20 +218,14 @@ class Sia {
   }
   itemToSia(item) {
     const { constructor } = item;
-    if (constructor === Date)
-      return {
-        constructor: "Date",
-        args: [item.valueOf()],
-      };
-    if (constructor === RegExp)
-      return {
-        constructor: "Regex",
-        args: [item.source, item.flags],
-      };
-    return {
-      constructor: constructor.name,
-      args: [item.toString()],
-    };
+    for (const entry of this.constructors) {
+      if (entry.constructor === constructor) {
+        return {
+          constructor: entry.name,
+          args: entry.args(item),
+        };
+      }
+    }
   }
   serialize(data) {
     this.data = data;
@@ -267,7 +272,11 @@ class LinkedList {
 }
 
 class DeSia {
-  constructor(constructors, onEnd, mapSize = 256 * 1000) {
+  constructor({
+    constructors = builtinConstructors,
+    onEnd,
+    mapSize = 256 * 1000,
+  } = {}) {
     this.constructors = constructors;
     this.map = new Array(mapSize);
     this.blocks = 0;
@@ -321,10 +330,15 @@ class DeSia {
       case SIA_TYPES.constructor: {
         const typeRef = this.readUIntHS();
         const argsRef = this.readUIntHS();
-        const constructor = this.constructors[this.map[typeRef]];
-        const value = constructor(...this.map[argsRef]);
-        this.addBlock(value);
-        return value;
+        const name = this.map[typeRef];
+        const args = this.map[argsRef];
+        for (const entry of this.constructors) {
+          if (entry.name === name) {
+            const value = entry.build(...args);
+            this.addBlock(value);
+            return value;
+          }
+        }
       }
 
       case SIA_TYPES.false:
@@ -458,7 +472,7 @@ class DeSia {
 }
 
 const _Sia = new Sia();
-const _Desia = new DeSia(builtinConstructors);
+const _Desia = new DeSia();
 
 const sia = (data) => _Sia.serialize(data);
 const desia = (data) => _Desia.deserialize(data);

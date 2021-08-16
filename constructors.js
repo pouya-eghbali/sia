@@ -1,8 +1,18 @@
-module.exports = {
-  Regex(source, flags) {
-    return new RegExp(source, flags);
+module.exports = [
+  {
+    constructor: RegExp,
+    name: "RegExp",
+    args: (item) => [item.source, item.flags],
+    build(source, flags) {
+      return new RegExp(source, flags);
+    },
   },
-  Date(value) {
-    return new Date(value);
+  {
+    constructor: Date,
+    name: "Date",
+    args: (item) => [item.valueOf()],
+    build(value) {
+      return new Date(value);
+    },
   },
-};
+];
