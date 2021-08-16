@@ -27,3 +27,25 @@ To run the benchmark suite you can run `npm run benchmark` and to run the tests 
 ## Specification
 
 Read [specs.md](specs.md).
+
+## Install
+
+To install the Node library and save it as a dependency, do:
+
+```bash
+npm i -S sia-serializer
+```
+
+## Documentation
+
+The Node Sia library exports 5 items:
+
+```JavaScript
+const { sia, desia, Sia, DeSia, constructors } = require("sia-serializer");
+```
+
+- `sia(data)` function serializes the given data using the default parameters.
+- `desia(buf)` function deserializes the given buffer using the default parameters.
+- `Sia(options)` class makes an instance of Sia serializer using the given options.
+- `DeSia(options)` class makes an instance of Sia deserializer using the given options.
+- `constructors` is an array of default constructors used both by Sia and DeSia.

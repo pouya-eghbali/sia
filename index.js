@@ -482,3 +482,4 @@ module.exports.desia = desia;
 
 module.exports.Sia = Sia;
 module.exports.DeSia = DeSia;
+module.exports.constructors = builtinConstructors;
