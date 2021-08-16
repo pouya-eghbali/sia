@@ -1,4 +1,4 @@
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/61f392c96c49481ba4c7d3f109db2fdc)](https://www.codacy.com/gh/pouya-eghbali/sia/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=pouya-eghbali/sia&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/61f392c96c49481ba4c7d3f109db2fdc)](https://www.codacy.com/gh/pouya-eghbali/sia/dashboard?utm_source=github.com&utm_medium=referral&utm_content=pouya-eghbali/sia&utm_campaign=Badge_Grade)
 [![codecov](https://codecov.io/gh/pouya-eghbali/sia/branch/master/graph/badge.svg?token=PCX0CJEW0A)](https://codecov.io/gh/pouya-eghbali/sia)
 
 # Sia
@@ -6,7 +6,7 @@
 Sia - Binary serialisation and deserialisation with built-in compression. You can consider Sia a strongly typed,
 statically typed domain specific binary language for constructing data. Sia preserves data types and supports custom ones.
 
-## Why?
+## Why
 
 I needed a fast schema-less serialization library that preserves type info and is able to code/decode custom types.
 I couldn't find one. At first I wanted to go with a JSON with types solution but it didn't work out, so
