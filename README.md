@@ -38,6 +38,8 @@ npm i -S sia-serializer
 
 ## Documentation
 
+WIP
+
 The Node Sia library exports 5 items:
 
 ```JavaScript
