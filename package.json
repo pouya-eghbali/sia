@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest --collect-coverage",
+    "test:nocov": "jest",
     "benchmark": "node benchmark/benchmark.js",
     "lint:check": "prettier --check . && eslint .",
     "lint:fix": "prettier --write ."
