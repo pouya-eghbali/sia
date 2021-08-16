@@ -4,3 +4,4 @@ isolate-*
 .DS_Store
 *.cpuprofile
 *.ignore
+coverage

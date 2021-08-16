@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
-    "benchmark": "node benchmark/benchmark.js"
+    "test": "jest --collect-coverage",
+    "benchmark": "node benchmark/benchmark.js",
+    "lint:check": "prettier --check . && eslint .",
+    "lint:fix": "prettier --write ."
   },
   "keywords": [],
   "author": "Pouya Eghbali <pouya.eghbali@yandex.com>",
@@ -15,10 +17,13 @@
     "cbor-x": "^0.8.3",
     "cli-table3": "^0.6.0",
     "deep-equal": "^2.0.5",
+    "eslint": "^7.32.0",
+    "eslint-plugin-jest": "^24.4.0",
     "jest": "^26.4.2",
     "lz4": "^0.6.3",
     "msgpack5": "^4.2.1",
     "node-fetch": "^2.6.1",
+    "prettier": "^2.3.2",
     "pretty-bytes": "^5.4.0",
     "stats-lite": "^2.2.0"
   }
