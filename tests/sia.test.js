@@ -1,4 +1,5 @@
 const { sia, desia } = require("..");
+const { Sia, DeSia } = require("..");
 const fetch = require("node-fetch");
 const deepEqual = require("deep-equal");
 
@@ -24,6 +25,13 @@ test("Serialize floats", () => {
   const deserialized = desia(serialized);
   expect(typeof deserialized).toEqual("number");
   expect(deserialized).toEqual(float);
+});
+
+test("Serialize array of floats", () => {
+  const floats = [3.14, 3.14];
+  const serialized = sia(floats);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(floats);
 });
 
 test("Serialize boolean", () => {
@@ -62,6 +70,39 @@ test("Serialize objects", () => {
   const serialized = sia(object);
   const deserialized = desia(serialized);
   expect(deserialized).toEqual(object);
+});
+
+test("Serialize undefined", () => {
+  const object = { abc: { xyz: undefined } };
+  const serialized = sia(object);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(object);
+});
+
+test("Throw on unsupported type", () => {
+  const buf = Buffer.from([0x42]);
+  expect(() => desia(buf)).toThrow("Unsupported type: 66");
+});
+
+test("Throw on huge ref", () => {
+  const sia = new Sia();
+  expect(() => sia.addRef(999999999999)).toThrow("Ref size is too big");
+});
+
+test("Stream", () => {
+  const data = { abc: { xyz: 100, pi: 3.14 }, floats: [1.1, 2.2, 3.3] };
+  const desia = new DeSia({}, (deserialized) => {
+    expect(deserialized).toEqual(data);
+  });
+  const sia = new Sia(
+    (buf) => {
+      desia.deserializeBlocks(buf, 2);
+    },
+    2,
+    1,
+    4000
+  );
+  sia.serialize(data);
 });
 
 test(
