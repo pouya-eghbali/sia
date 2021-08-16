@@ -297,17 +297,24 @@ class LinkedList {
 }
 
 class DeSia {
-  constructor(constructors, onEnd) {
+  constructor(constructors, onEnd, mapSize = 256 * 1000) {
     this.constructors = constructors;
-    this.map = [];
+    this.map = new Array(mapSize);
+    this.blocks = 0;
     this.offset = 0;
     this.onEnd = onEnd;
     this.ended = false;
   }
   reset() {
-    this.map = [];
+    this.blocks = 0;
     this.offset = 0;
     this.ended = false;
+  }
+  addBlock(value) {
+    this.map[this.blocks++] = value;
+  }
+  skipBlock() {
+    this.blocks++;
   }
   readBlock() {
     const blockType = this.readUInt8();
@@ -315,49 +322,49 @@ class DeSia {
       case SIA_TYPES.string: {
         const length = this.readUIntHS();
         const string = this.readUTF8(length);
-        this.map.push(string);
+        this.addBlock(string);
         if (this.currentObject) this.currentObject.push(string);
         return string;
       }
 
       case SIA_TYPES.int8: {
         const number = this.readUInt8();
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
 
       case SIA_TYPES.int16: {
         const number = this.readUInt16();
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
 
       case SIA_TYPES.int24: {
         const number = this.readUInt24();
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
 
       case SIA_TYPES.int32: {
         const number = this.readInt32();
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
 
       case SIA_TYPES.int40: {
         const number = this.readUInt40();
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
 
       case SIA_TYPES.int48: {
         const number = this.readInt48();
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
@@ -365,7 +372,7 @@ class DeSia {
       case SIA_TYPES.intn: {
         const n = this.readUInt8();
         const number = this.readUIntN(n);
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
@@ -422,7 +429,7 @@ class DeSia {
 
       case SIA_TYPES.float64: {
         const number = this.readDouble();
-        this.map.push(number);
+        this.addBlock(number);
         if (this.currentObject) this.currentObject.push(number);
         return number;
       }
@@ -432,28 +439,28 @@ class DeSia {
         const argsRef = this.readUIntHS();
         const constructor = this.constructors[this.map[typeRef]];
         const value = constructor(...this.map[argsRef]);
-        this.map.push(value);
+        this.addBlock(value);
         return value;
       }
 
       case SIA_TYPES.false:
         if (this.currentObject) this.currentObject.push(false);
-        this.map.push(false);
+        this.skipBlock();
         return false;
 
       case SIA_TYPES.true:
         if (this.currentObject) this.currentObject.push(true);
-        this.map.push(true);
+        this.skipBlock();
         return true;
 
       case SIA_TYPES.null:
         if (this.currentObject) this.currentObject.push(null);
-        this.map.push(null);
+        this.skipBlock();
         return null;
 
       case SIA_TYPES.undefined:
         if (this.currentObject) this.currentObject.push(undefined);
-        this.map.push(undefined);
+        this.skipBlock();
         return undefined;
 
       case SIA_TYPES.end:
@@ -477,7 +484,7 @@ class DeSia {
         const { obj } = this.currentObject;
         this.currentObjectLL = this.currentObjectLL.prev || {};
         this.currentObject = this.currentObjectLL.value;
-        this.map.push(obj);
+        this.addBlock(obj);
         if (this.currentObject) this.currentObject.push(obj);
         return obj;
       }
@@ -496,7 +503,7 @@ class DeSia {
         const { arr } = this.currentObject;
         this.currentObjectLL = this.currentObjectLL.prev || {};
         this.currentObject = this.currentObjectLL.value;
-        this.map.push(arr);
+        this.addBlock(arr);
         if (this.currentObject) this.currentObject.push(arr);
         return arr;
       }
