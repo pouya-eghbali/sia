@@ -1,6 +1,6 @@
 {
-  "name": "sia",
-  "version": "1.0.0",
+  "name": "sia-serializer",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "benchmark": "node benchmark/benchmark.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Pouya Eghbali <pouya.eghbali@yandex.com>",
   "license": "Apache-2.0",
   "devDependencies": {
     "benchmark": "^2.1.4",

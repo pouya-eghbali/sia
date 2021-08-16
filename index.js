@@ -156,20 +156,20 @@ class Sia {
     return cached;
   }
   startArray(length) {
-    this.writeUInt8(SIA_TYPES.arr_start);
+    this.writeUInt8(SIA_TYPES.arrayStart);
     this.writeUIntHS(length);
     this.addBlock();
   }
   endArray() {
-    this.writeUInt8(SIA_TYPES.arr_end);
+    this.writeUInt8(SIA_TYPES.arrayEnd);
     return this.addBlock(true);
   }
   startObject() {
-    this.writeUInt8(SIA_TYPES.obj_start);
+    this.writeUInt8(SIA_TYPES.objectStart);
     this.addBlock();
   }
   endObject() {
-    this.writeUInt8(SIA_TYPES.obj_end);
+    this.writeUInt8(SIA_TYPES.objectEnd);
     return this.addBlock(true);
   }
   addBoolean(bool) {
@@ -255,7 +255,7 @@ class Sia {
   serialize(data) {
     this.data = data;
     this.reset();
-    this.writeUInt8(SIA_TYPES.hints);
+    this.writeUInt8(SIA_TYPES.hintSize);
     this.writeUInt8(this.hintSize);
     this.addBlock();
     this.serializeItem(this.data);
@@ -467,11 +467,11 @@ class DeSia {
         this.ended = true;
         break;
 
-      case SIA_TYPES.hints:
+      case SIA_TYPES.hintSize:
         this.hintSize = this.readUInt8();
         return;
 
-      case SIA_TYPES.obj_start: {
+      case SIA_TYPES.objectStart: {
         this.currentObject = new CoolObject();
         this.currentObjectLL = new LinkedList(
           this.currentObject,
@@ -480,7 +480,7 @@ class DeSia {
         break;
       }
 
-      case SIA_TYPES.obj_end: {
+      case SIA_TYPES.objectEnd: {
         const { obj } = this.currentObject;
         this.currentObjectLL = this.currentObjectLL.prev || {};
         this.currentObject = this.currentObjectLL.value;
@@ -489,7 +489,7 @@ class DeSia {
         return obj;
       }
 
-      case SIA_TYPES.arr_start: {
+      case SIA_TYPES.arrayStart: {
         const length = this.readUIntHS();
         this.currentObject = new CoolArray(length);
         this.currentObjectLL = new LinkedList(
@@ -499,7 +499,7 @@ class DeSia {
         break;
       }
 
-      case SIA_TYPES.arr_end: {
+      case SIA_TYPES.arrayEnd: {
         const { arr } = this.currentObject;
         this.currentObjectLL = this.currentObjectLL.prev || {};
         this.currentObject = this.currentObjectLL.value;

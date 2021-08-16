@@ -44,11 +44,11 @@ const typeNames = [
   "date",
   "date64",
   "constructor",
-  "arr_start",
-  "arr_end",
-  "obj_start",
-  "obj_end",
-  "hints",
+  "arrayStart",
+  "arrayEnd",
+  "objectStart",
+  "objectEnd",
+  "hintSize",
   "end",
 ];
 
