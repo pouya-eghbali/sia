@@ -48,7 +48,7 @@ const typeNames = [
   "arr_end",
   "obj_start",
   "obj_end",
-  "address",
+  "hints",
   "end",
 ];
 

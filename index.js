@@ -5,13 +5,13 @@ const { toString } = Object.prototype;
 const typeOf = (item) => toString.call(item);
 
 class Sia {
-  constructor(onBlocksReady, nBlocks = 1, byteSize = 3, size = 33554432) {
+  constructor(onBlocksReady, nBlocks = 1, byteSize = 2, size = 33554432) {
     this.strMap = {};
     this.map = new Map();
     this.buffer = Buffer.alloc(size);
     this.refMap = [];
     this.refIndex = 0;
-    this.addressSpaceSize = byteSize;
+    this.hintSize = byteSize;
     this.offset = 0;
     this.blocks = 0;
     this.dataBlocks = 0;
@@ -36,13 +36,13 @@ class Sia {
     return this.refMap[--this.refIndex];
   }
   writeUTF8(part) {
-    const length = this.buffer.write(part, this.offset + this.addressSpaceSize);
-    this.buffer.writeUIntLE(length, this.offset, this.addressSpaceSize);
-    this.offset += length + this.addressSpaceSize;
+    const length = this.buffer.write(part, this.offset + this.hintSize);
+    this.buffer.writeUIntLE(length, this.offset, this.hintSize);
+    this.offset += length + this.hintSize;
   }
-  writeUIntAS(number) {
-    this.buffer.writeUIntLE(number, this.offset, this.addressSpaceSize);
-    this.offset += this.addressSpaceSize;
+  writeUIntHS(number) {
+    this.buffer.writeUIntLE(number, this.offset, this.hintSize);
+    this.offset += this.hintSize;
   }
   writeUInt8(number) {
     this.buffer.writeUInt8(number, this.offset);
@@ -157,7 +157,7 @@ class Sia {
   }
   startArray(length) {
     this.writeUInt8(SIA_TYPES.arr_start);
-    this.writeUIntAS(length);
+    this.writeUIntHS(length);
     this.addBlock();
   }
   endArray() {
@@ -193,8 +193,8 @@ class Sia {
     const argsRef = this.serializeItem(args);
     const typeRef = this.addString(constructor);
     this.writeUInt8(SIA_TYPES.constructor);
-    this.writeUIntAS(typeRef);
-    this.writeUIntAS(argsRef);
+    this.writeUIntHS(typeRef);
+    this.writeUIntHS(argsRef);
     return this.addBlock(true);
   }
   serializeItem(item) {
@@ -255,8 +255,8 @@ class Sia {
   serialize(data) {
     this.data = data;
     this.reset();
-    this.writeUInt8(SIA_TYPES.address);
-    this.writeUInt8(this.addressSpaceSize);
+    this.writeUInt8(SIA_TYPES.hints);
+    this.writeUInt8(this.hintSize);
     this.addBlock();
     this.serializeItem(this.data);
     this.writeUInt8(SIA_TYPES.end);
@@ -300,14 +300,12 @@ class DeSia {
   constructor(constructors, onEnd) {
     this.constructors = constructors;
     this.map = [];
-    this.blocks = [];
     this.offset = 0;
     this.onEnd = onEnd;
     this.ended = false;
   }
   reset() {
     this.map = [];
-    this.blocks = [];
     this.offset = 0;
     this.ended = false;
   }
@@ -315,7 +313,7 @@ class DeSia {
     const blockType = this.readUInt8();
     switch (blockType) {
       case SIA_TYPES.string: {
-        const length = this.readUIntAS();
+        const length = this.readUIntHS();
         const string = this.readUTF8(length);
         this.map.push(string);
         if (this.currentObject) this.currentObject.push(string);
@@ -430,8 +428,8 @@ class DeSia {
       }
 
       case SIA_TYPES.constructor: {
-        const typeRef = this.readUIntAS();
-        const argsRef = this.readUIntAS();
+        const typeRef = this.readUIntHS();
+        const argsRef = this.readUIntHS();
         const constructor = this.constructors[this.map[typeRef]];
         const value = constructor(...this.map[argsRef]);
         this.map.push(value);
@@ -462,8 +460,8 @@ class DeSia {
         this.ended = true;
         break;
 
-      case SIA_TYPES.address:
-        this.addressSpaceSize = this.readUInt8();
+      case SIA_TYPES.hints:
+        this.hintSize = this.readUInt8();
         return;
 
       case SIA_TYPES.obj_start: {
@@ -485,7 +483,7 @@ class DeSia {
       }
 
       case SIA_TYPES.arr_start: {
-        const length = this.readUIntAS();
+        const length = this.readUIntHS();
         this.currentObject = new CoolArray(length);
         this.currentObjectLL = new LinkedList(
           this.currentObject,
@@ -508,8 +506,8 @@ class DeSia {
         throw error;
     }
   }
-  readUIntAS() {
-    return this.readNativeUIntN(this.addressSpaceSize);
+  readUIntHS() {
+    return this.readNativeUIntN(this.hintSize);
   }
   readNativeUIntN(n) {
     const intN = this.buffer.readUIntLE(this.offset, n);
@@ -615,7 +613,6 @@ module.exports.desia = desia;
 
 module.exports.Sia = Sia;
 module.exports.DeSia = DeSia;
-
 /* 
 const deepEqual = require("deep-equal");
 const fetch = require("node-fetch");
@@ -639,5 +636,4 @@ const test = async () => {
   }
 };
 
-test().catch(console.trace);
- */
+test().catch(console.trace); */

@@ -1,0 +1,22 @@
+{
+  "mainDirectory": "/Users/pouya/Projects/sia",
+  "pathSeparator": "/",
+  "nodeVersions": {
+    "node": "16.4.2",
+    "v8": "9.1.269.36-node.14",
+    "uv": "1.41.0",
+    "zlib": "1.2.11",
+    "brotli": "1.0.9",
+    "ares": "1.17.1",
+    "modules": "93",
+    "nghttp2": "1.43.0",
+    "napi": "8",
+    "llhttp": "6.0.2",
+    "openssl": "1.1.1k",
+    "cldr": "39.0",
+    "icu": "69.1",
+    "tz": "2021a",
+    "unicode": "13.0"
+  },
+  "toolVersion": "9.0.0"
+}
