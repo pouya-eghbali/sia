@@ -61,27 +61,3 @@ test("Serialize objects", () => {
   const deserialized = desia(serialized);
   expect(deserialized).toEqual(object);
 });
-
-test("Serialize custom classes", () => {
-  class Person {
-    constructor(name, age) {
-      this.name = name;
-      this.age = age;
-    }
-    toSia() {
-      return {
-        constructor: "Person",
-        args: [this.name, this.age],
-      };
-    }
-  }
-  const person = new Person("John Doe", 28);
-  const serialized = sia(person);
-  const deserialized = desia(serialized, {
-    Person(name, age) {
-      return new Person(name, age);
-    },
-  });
-  expect(deserialized).toBeInstanceOf(Person);
-  expect(deserialized).toEqual(person);
-});
