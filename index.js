@@ -1,79 +1,39 @@
 const builtinConstructors = require("./constructors");
-
-const SIA_TYPES = {
-  null: 0,
-  undefined: 1,
-  uint8: 2,
-  uint16: 3,
-  uint32: 4,
-  uint64: 5,
-  uint128: 6,
-  uintn: 7,
-  int8: 8,
-  int16: 9,
-  int32: 10,
-  int64: 11,
-  int128: 12,
-  intn: 13,
-  float8: 14,
-  float16: 15,
-  float32: 16,
-  float64: 17,
-  float128: 18,
-  floatn: 19,
-  uint8_arr: 20,
-  uint16_arr: 21,
-  uint32_arr: 22,
-  uint64_arr: 23,
-  uint128_arr: 24,
-  uint8_hash: 25,
-  uint16_hash: 26,
-  uint32_hash: 27,
-  uint64_hash: 28,
-  uint128_hash: 29,
-  uint8_object: 30,
-  uint16_object: 31,
-  uint32_object: 32,
-  uint64_object: 33,
-  uint128_object: 34,
-  uint8_set: 35,
-  uint16_set: 36,
-  uint32_set: 37,
-  uint64_set: 38,
-  uint128_set: 39,
-  string: 40,
-  raw: 41,
-  true: 42,
-  false: 43,
-  date: 44,
-  date64: 45,
-  constructor: 46,
-  call: 47,
-  arr_start: 48,
-  arr_end: 49,
-  arr_push: 50,
-  obj_start: 51,
-  obj_end: 52,
-  obj_push: 53,
-  address: 254,
-  end: 255,
-};
+const SIA_TYPES = require("./types");
 
 const { toString } = Object.prototype;
 const typeOf = (item) => toString.call(item);
 
 class Sia {
-  constructor(data, onBlocksReady, nBlocks = 1) {
-    this.data = data;
+  constructor(onBlocksReady, nBlocks = 1, byteSize = 3, size = 33554432) {
+    this.strMap = {};
     this.map = new Map();
-    this.buffer = Buffer.alloc(33554432); //32mb TODO
-    this.addressSpaceSize = 3;
+    this.buffer = Buffer.alloc(size);
+    this.refMap = [];
+    this.refIndex = 0;
+    this.addressSpaceSize = byteSize;
     this.offset = 0;
     this.blocks = 0;
     this.dataBlocks = 0;
     this.onBlocksReady = onBlocksReady;
     this.nBlocks = nBlocks;
     this.bufferedBlocks = 0;
+  }
+  reset() {
+    this.strMap = {};
+    this.map = new Map();
+    this.refMap = [];
+    this.refIndex = 0;
+    this.offset = 0;
+    this.blocks = 0;
+    this.dataBlocks = 0;
+    this.bufferedBlocks = 0;
+  }
+  pushRef(...refs) {
+    for (const ref of refs) this.refMap[this.refIndex++] = ref;
+  }
+  popRef() {
+    return this.refMap[--this.refIndex];
   }
   writeUTF8(part) {
     const length = this.buffer.write(part, this.offset + this.addressSpaceSize);
@@ -120,8 +80,8 @@ class Sia {
   blockReady() {
     if (!this.onBlocksReady) return;
     if (++this.bufferedBlocks >= this.nBlocks) {
-      const blocks = this.buffer.slice(this.lastOffset || 0, this.offset);
-      this.lastOffset = this.offset;
+      const blocks = this.buffer.slice(0, this.offset);
+      this.offset = 0;
       this.onBlocksReady(blocks);
       this.bufferedBlocks = 0;
     }
@@ -133,28 +93,72 @@ class Sia {
     this.onBlocksReady(blocks);
   }
   addString(string) {
-    if (!this.map.has(string)) {
+    const cached = this.strMap[string];
+    if (!cached) {
       this.writeUInt8(SIA_TYPES.string);
       this.writeUTF8(string);
       const block = this.addBlock(true);
-      this.map.set(string, block);
+      this.strMap[string] = block;
       return block;
     }
-    return this.map.get(string);
+    this.addRef(cached);
+    return cached;
+  }
+  addRef(number) {
+    let n = number;
+    const bytes = [];
+    while (n) {
+      var byte = n & 0xff;
+      bytes.push(byte);
+      n = (n - byte) / 256;
+    }
+    const { length } = bytes;
+    if (length === 1) this.writeUInt8(SIA_TYPES.ref8);
+    else if (length === 2) this.writeUInt8(SIA_TYPES.ref16);
+    else if (length === 3) this.writeUInt8(SIA_TYPES.ref24);
+    else if (length === 4) this.writeUInt8(SIA_TYPES.ref32);
+    else if (length === 5) this.writeUInt8(SIA_TYPES.ref40);
+    else if (length === 6) this.writeUInt8(SIA_TYPES.ref48);
+    else {
+      this.writeUInt8(SIA_TYPES.refn);
+      this.writeUInt8(length);
+    }
+    for (const byte of bytes) this.writeUInt8(byte);
+    this.addBlock();
   }
   addNumber(number) {
-    //if (Number.isInteger(number)) return this.addInteger(number);
+    // TODO: make this faster https://jsben.ch/26igA
+    if (Number.isInteger(number)) return this.addInteger(number);
     return this.addFloat(number);
   }
   addInteger(number) {
     if (!this.map.has(number)) {
-      this.writeUInt8(SIA_TYPES.float64);
-      this.writeUInt32(number);
+      let n = number;
+      const bytes = [];
+      while (n) {
+        var byte = n & 0xff;
+        bytes.push(byte);
+        n = (n - byte) / 256;
+      }
+      const { length } = bytes;
+      if (length === 1) this.writeUInt8(SIA_TYPES.int8);
+      else if (length === 2) this.writeUInt8(SIA_TYPES.int16);
+      else if (length === 3) this.writeUInt8(SIA_TYPES.int24);
+      else if (length === 4) this.writeUInt8(SIA_TYPES.int32);
+      else if (length === 5) this.writeUInt8(SIA_TYPES.int40);
+      else if (length === 6) this.writeUInt8(SIA_TYPES.int48);
+      else {
+        this.writeUInt8(SIA_TYPES.intn);
+        this.writeUInt8(length);
+      }
+      for (const byte of bytes) this.writeUInt8(byte);
       const block = this.addBlock(true);
       this.map.set(number, block);
       return block;
     }
-    return this.map.get(number);
+    const cached = this.map.get(number);
+    this.addRef(cached);
+    return cached;
   }
   addFloat(number) {
     if (!this.map.has(number)) {
@@ -164,29 +168,35 @@ class Sia {
       this.map.set(number, block);
       return block;
     }
-    return this.map.get(number);
+    const cached = this.map.get(number);
+    this.addRef(cached);
+    return cached;
   }
-  addObject(entries, length) {
-    this.writeUInt8(SIA_TYPES.uint64_object);
-    this.writeUInt32(length);
-    for (const item of entries) this.writeUInt32(item);
+  addObject(startRefIndex) {
+    this.writeUInt8(SIA_TYPES.object);
+    let refs = this.refIndex - startRefIndex;
+    this.writeUIntAS(refs / 2);
+    while (refs--) this.writeUIntAS(this.popRef());
     const block = this.addBlock(true);
     return block;
   }
-  addArray(items, length) {
-    this.writeUInt8(SIA_TYPES.uint64_arr);
-    this.writeUInt32(length);
-    for (const item of items) this.writeUInt32(item);
+  addArray(startRefIndex) {
+    this.writeUInt8(SIA_TYPES.arr);
+    let refs = this.refIndex - startRefIndex;
+    this.writeUIntAS(refs);
+    while (refs--) this.writeUIntAS(this.popRef());
     const block = this.addBlock(true);
     return block;
   }
   startArray(length) {
     this.writeUInt8(SIA_TYPES.arr_start);
     this.writeUIntAS(length);
+    this.addBlock();
   }
   pushArray(block) {
     this.writeUInt8(SIA_TYPES.arr_push);
     this.writeUIntAS(block);
+    this.addBlock();
   }
   endArray() {
     this.writeUInt8(SIA_TYPES.arr_end);
@@ -194,11 +204,13 @@ class Sia {
   }
   startObject(/* length */) {
     this.writeUInt8(SIA_TYPES.obj_start);
+    this.addBlock();
     //this.writeDouble(length);
   }
   pushObject(block) {
     this.writeUInt8(SIA_TYPES.obj_push);
     this.writeUIntAS(block);
+    this.addBlock();
   }
   endObject() {
     this.writeUInt8(SIA_TYPES.obj_end);
@@ -210,31 +222,36 @@ class Sia {
     const block = this.addBlock(true);
     return block;
   }
-  serializeItem(item) {
-    if (item && item.constructor === Object) {
-      this.startObject();
-      this.addBlock();
-      for (const key in item) {
-        this.pushObject(this.addString(key));
-        this.addBlock();
-        this.pushObject(this.serializeItem(item[key]));
-        this.addBlock();
-      }
-      return this.endObject();
-    }
-    if (Array.isArray(item)) {
-      this.startArray(item.length);
-      this.addBlock();
-      for (const m of item) {
-        this.pushArray(this.serializeItem(m));
-        this.addBlock();
-      }
-      return this.endArray();
-    }
+  addNull() {
+    this.writeUInt8(SIA_TYPES.null);
+    const block = this.addBlock(true);
+    return block;
+  }
+  addUndefined() {
+    this.writeUInt8(SIA_TYPES.undefined);
+    const block = this.addBlock(true);
+    return block;
+  }
+  addCustomType(item) {
+    const { args, constructor } = item.toSia();
+    const argsRef = this.serializeItem(args);
+    const typeRef = this.addString(constructor);
+    this.writeUInt8(SIA_TYPES.constructor);
+    this.writeUIntAS(typeRef);
+    this.writeUIntAS(argsRef);
+    return this.addBlock(true);
+  }
+  serializeItem(item, context = {}) {
     const type = typeOf(item);
     switch (type) {
       case `[object String]`:
         return this.addString(item);
+
+      case `[object Null]`:
+        return this.addNull(item);
+
+      case `[object Undefined]`:
+        return this.addUndefined(item);
 
       case `[object Number]`:
         return this.addNumber(item);
@@ -242,37 +259,27 @@ class Sia {
       case `[object Boolean]`:
         return this.addBoolean(item);
 
-      case `[object Object]`:
+      case `[object Object]`: {
+        if (item.compile) return item.compile(this, context);
+        if (item.toSia) return this.addCustomType(item);
         this.startObject();
-        this.addBlock();
         for (const key in item) {
-          this.pushObject(this.addString(key));
-          this.addBlock();
-          this.pushObject(this.serializeItem(item[key]));
-          this.addBlock();
+          this.addString(key);
+          this.serializeItem(item[key]);
         }
         return this.endObject();
+      }
 
-      case `[object Array]`:
-        this.startArray(item.length);
-        this.addBlock();
-        for (const m of item) {
-          this.pushArray(this.serializeItem(m));
-          this.addBlock();
-        }
+      case `[object Array]`: {
+        this.startArray();
+        for (const m of item) this.serializeItem(m);
         return this.endArray();
+      }
 
       default:
         break;
     }
-    /* if (Array.isArray(item)) {
-      const { length } = item;
-      const items = new Array(length);
-      let i = 0;
-      for (const m of item) items[i++] = this.serializeItem(m);
-      return this.addArray(items, length);
-    } */
-    /* const { constructor, args = [] } =
+    const { constructor, args = [] } =
       item && item.toSia === "function" ? item.toSia() : this.itemtoSia(item);
     const constructorRef = this.serializeItem(constructor);
     const serializedArgs = [constructorRef];
@@ -285,7 +292,7 @@ class Sia {
       serializedArgs.push(argRef);
     }
     if (length > max) max = length;
-    return this.addValue(serializedArgs, max, length); */
+    return this.addValue(serializedArgs, max, length);
   }
   itemtoSia(item) {
     const { constructor } = item;
@@ -304,7 +311,9 @@ class Sia {
       args: [item.toString()],
     };
   }
-  serialize() {
+  serialize(data) {
+    this.data = data;
+    this.reset();
     this.writeUInt8(SIA_TYPES.address);
     this.writeUInt8(this.addressSpaceSize);
     this.addBlock();
@@ -346,15 +355,20 @@ class LinkedList {
   }
 }
 
-const END = Symbol("end");
-
 class DeSia {
-  constructor(buffer, onEnd) {
-    this.buffer = buffer;
-    this.addressSpaceSize = buffer ? this.buffer.readUInt8() : 0;
+  constructor(constructors, onEnd) {
+    this.constructors = constructors;
     this.map = [];
+    this.blocks = [];
     this.offset = 0;
     this.onEnd = onEnd;
+    this.ended = false;
+  }
+  reset() {
+    this.map = [];
+    this.blocks = [];
+    this.offset = 0;
+    this.ended = false;
   }
   readBlock() {
     const blockType = this.readUInt8();
@@ -363,14 +377,184 @@ class DeSia {
         const length = this.readUIntAS();
         const string = this.readUTF8(length);
         this.map.push(string);
+        if (this.currentObject) this.currentObject.push(string);
         return string;
+      }
+
+      case SIA_TYPES.int8: {
+        const number = this.readUInt8();
+        this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.int16: {
+        const number = this.readUInt16();
+        this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.int24: {
+        const number = this.readUInt24();
+        this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.int32: {
+        const number = this.readUInt32();
+        this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.int40: {
+        const number = this.readUInt40();
+        this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.int48: {
+        const number = this.readUInt48();
+        this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.intn: {
+        const n = this.readUInt8();
+        const number = this.readUIntN(n);
+        this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.ref8: {
+        const number = this.readUInt8();
+        const value = this.map[number];
+        if (this.currentObject) this.currentObject.push(value);
+        return value;
+      }
+
+      case SIA_TYPES.ref16: {
+        const number = this.readUInt16();
+        const value = this.map[number];
+        if (this.currentObject) this.currentObject.push(value);
+        return value;
+      }
+
+      case SIA_TYPES.ref24: {
+        const number = this.readUInt24();
+        const value = this.map[number];
+        if (this.currentObject) this.currentObject.push(value);
+        return value;
+      }
+
+      case SIA_TYPES.ref32: {
+        const number = this.readUInt32();
+        const value = this.map[number];
+        if (this.currentObject) this.currentObject.push(value);
+        return value;
+      }
+
+      case SIA_TYPES.ref40: {
+        const number = this.readUInt40();
+        const value = this.map[number];
+        if (this.currentObject) this.currentObject.push(value);
+        return value;
+      }
+
+      case SIA_TYPES.ref48: {
+        const number = this.readUInt48();
+        const value = this.map[number];
+        if (this.currentObject) this.currentObject.push(value);
+        return value;
+      }
+
+      case SIA_TYPES.refn: {
+        const n = this.readUInt8();
+        const number = this.readUIntN(n);
+        const value = this.map[number];
+        if (this.currentObject) this.currentObject.push(value);
+        return value;
       }
 
       case SIA_TYPES.float64: {
         const number = this.readDouble();
         this.map.push(number);
+        if (this.currentObject) this.currentObject.push(number);
         return number;
       }
+
+      /*   case SIA_TYPES.object: {
+        // TODO
+        const length = this.readUIntAS();
+        const object = {};
+        let i = 0;
+        while (i < length) {
+          const kRef = this.readUIntAS();
+          const vRef = this.readUIntAS();
+          const key = this.map[kRef];
+          const val = this.map[vRef];
+          object[key] = val;
+          i += 1;
+        }
+        this.map.push(object);
+        return object;
+      } */
+
+      /* case SIA_TYPES.arr: {
+        // TODO
+        const length = this.readUIntAS();
+        const arr = new Array(length);
+        let i = 0;
+        while (i < length) {
+          const ref = this.readUIntAS();
+          const value = this.map[ref];
+          arr[i++] = value;
+        }
+        this.map.push(arr);
+        return arr;
+      } */
+
+      case SIA_TYPES.constructor: {
+        const typeRef = this.readUIntAS();
+        const argsRef = this.readUIntAS();
+        const constructor = this.constructors[this.map[typeRef]];
+        const value = constructor(...this.map[argsRef]);
+        this.map.push(value);
+        return value;
+      }
+
+      case SIA_TYPES.false:
+        if (this.currentObject) this.currentObject.push(false);
+        this.map.push(false);
+        return false;
+
+      case SIA_TYPES.true:
+        if (this.currentObject) this.currentObject.push(true);
+        this.map.push(true);
+        return true;
+
+      case SIA_TYPES.null:
+        if (this.currentObject) this.currentObject.push(null);
+        this.map.push(null);
+        return null;
+
+      case SIA_TYPES.undefined:
+        if (this.currentObject) this.currentObject.push(undefined);
+        this.map.push(undefined);
+        return undefined;
+
+      case SIA_TYPES.end:
+        this.ended = true;
+        break;
+
+      case SIA_TYPES.address:
+        this.addressSpaceSize = this.readUInt8();
+        return;
 
       case SIA_TYPES.obj_start: {
         this.currentObject = new CoolObject();
@@ -393,15 +577,16 @@ class DeSia {
         this.currentObjectLL = this.currentObjectLL.prev || {};
         this.currentObject = this.currentObjectLL.value;
         this.map.push(obj);
+        if (this.currentObject) this.currentObject.push(obj);
         return obj;
       }
 
       case SIA_TYPES.arr_start: {
         const length = this.readUIntAS();
-        this.currentArray = new CoolArray(length);
-        this.currentArrayLL = new LinkedList(
-          this.currentArray,
-          this.currentArrayLL
+        this.currentObject = new CoolArray(length);
+        this.currentObjectLL = new LinkedList(
+          this.currentObject,
+          this.currentObjectLL
         );
         break;
       }
@@ -409,33 +594,22 @@ class DeSia {
       case SIA_TYPES.arr_push: {
         const blockRef = this.readUIntAS();
         const value = this.map[blockRef];
-        this.currentArray.push(value);
+        this.currentObject.push(value);
         break;
       }
 
       case SIA_TYPES.arr_end: {
-        const { arr } = this.currentArray;
-        this.currentArrayLL = this.currentArrayLL.prev || {};
-        this.currentArray = this.currentArrayLL.value;
+        const { arr } = this.currentObject;
+        this.currentObjectLL = this.currentObjectLL.prev || {};
+        this.currentObject = this.currentObjectLL.value;
         this.map.push(arr);
+        if (this.currentObject) this.currentObject.push(arr);
         return arr;
       }
 
-      case SIA_TYPES.false:
-        return false;
-
-      case SIA_TYPES.true:
-        return true;
-
-      case SIA_TYPES.end:
-        return END;
-
-      case SIA_TYPES.address:
-        this.addressSpaceSize = this.readUInt8();
-        return;
-
       default:
-        break;
+        const error = `Unsupported type: ${blockType}`;
+        throw error;
     }
   }
   getBlockInfo(blockTag) {
@@ -447,9 +621,12 @@ class DeSia {
     return { blockType, byteSize, sign };
   }
   readUIntAS() {
-    const intAS = this.buffer.readUIntLE(this.offset, this.addressSpaceSize);
-    this.offset += this.addressSpaceSize;
-    return intAS;
+    return this.readNativeUIntN(this.addressSpaceSize);
+  }
+  readNativeUIntN(n) {
+    const intN = this.buffer.readUIntLE(this.offset, n);
+    this.offset += n;
+    return intN;
   }
   readInt8() {
     const int8 = this.buffer.readInt8(this.offset);
@@ -466,10 +643,25 @@ class DeSia {
     this.offset += 2;
     return uInt16;
   }
+  readUInt24() {
+    return this.readNativeUIntN(3);
+  }
   readUInt32() {
     const uInt32 = this.buffer.readUInt32LE(this.offset);
     this.offset += 4;
     return uInt32;
+  }
+  readUInt40() {
+    return this.readNativeUIntN(5);
+  }
+  readUInt48() {
+    return this.readNativeUIntN(6);
+  }
+  readUIntN(n) {
+    let number = 0;
+    let i = 0;
+    while (i++ < n) number = number * 256 + this.readUInt8();
+    return number;
   }
   readDouble() {
     const uInt64 = this.buffer.readDoubleLE(this.offset);
@@ -496,27 +688,57 @@ class DeSia {
     this.offset = 0;
     while (nBlocks--) {
       const block = this.readBlock();
-      if (block === END) {
-        // maybe this.ended is faster
+      if (this.ended) {
         if (this.onEnd) this.onEnd(this.lastBlock);
         return;
       }
       this.lastBlock = block;
     }
   }
-  deserialize(constructors) {
-    this.constructors = constructors;
+  deserialize(buffer) {
+    this.buffer = buffer;
+    this.reset();
     while (true) {
       const block = this.readBlock();
-      if (block === END) return this.lastBlock;
+      if (this.ended) return this.lastBlock;
       this.lastBlock = block;
     }
   }
 }
 
-module.exports.sia = (data, onBlock) => new Sia(data, onBlock).serialize();
-module.exports.desia = (data, constructors = {}) =>
-  new DeSia(data).deserialize({ ...builtinConstructors, ...constructors });
+const _Sia = new Sia();
+const _Desia = new DeSia(builtinConstructors);
+
+const sia = (data) => _Sia.serialize(data);
+const desia = (data) => _Desia.deserialize(data);
+
+module.exports.sia = sia;
+module.exports.desia = desia;
 
 module.exports.Sia = Sia;
 module.exports.DeSia = DeSia;
+/* 
+const deepEqual = require("deep-equal");
+const fetch = require("node-fetch");
+
+const test = async () => {
+  const dataset = [
+    42,
+    3.14,
+    [1, 2, 3],
+    [1, 2, 3, "hello"],
+    { hello: "meow", meow: "hello" },
+    { hello: [1, 2, 3, "hello"] },
+    await fetch(
+      "https://github.com/json-iterator/test-data/raw/master/large-file.json"
+    ).then((resp) => resp.json()),
+  ];
+  for (const data of dataset) {
+    const deserialized = desia(sia(data));
+    const result = deepEqual(data, deserialized) ? "PASS" : "FAIL";
+    console.log(result, JSON.stringify(data).slice(0, 40));
+  }
+};
+
+test().catch(console.trace);
+ */

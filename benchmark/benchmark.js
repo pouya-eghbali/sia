@@ -1,22 +1,20 @@
 const fetch = require("node-fetch");
 const prettyBytes = require("pretty-bytes");
 const msgpack = require("msgpack5")();
-const cbor = require("cbor");
+const cborX = require("cbor-x");
 const Table = require("cli-table3");
-const convertHrtime = require("convert-hrtime");
 const LZ4 = require("lz4");
 const { sia, desia } = require("..");
-const { sia: siaLab, desia: desiaLab } = require("../lab");
-const { async } = require("nodemark/lib/benchmark");
+const stats = require("stats-lite");
 
 const compress = (input) => {
-  const output = Buffer.alloc(LZ4.encodeBound(33554432));
+  const output = Buffer.alloc(LZ4.encodeBound(5 * 1024 * 1024));
   const compressedSize = LZ4.encodeBlock(input, output);
   return output.slice(0, compressedSize);
 };
 
 const decompress = (input) => {
-  const uncompressed = Buffer.alloc(33554432);
+  const uncompressed = Buffer.alloc(26 * 1024 * 1024);
   const uncompressedSize = LZ4.decodeBlock(input, uncompressed);
   return uncompressed.slice(0, uncompressedSize);
 };
@@ -35,7 +33,7 @@ const runTests = (data) => {
   });
   const results = [];
   const sum = (a, b) => a + b;
-  const bench = (serialize, deserialize, name, n = 1000) => {
+  const bench = (serialize, deserialize, name, n = 100) => {
     console.log(`Running benchmarks for ${name}, ${n} loops`);
     const serTimes = [];
     const deserTimes = [];
@@ -50,11 +48,11 @@ const runTests = (data) => {
       serTimes.push(serend.user / 1000);
       deserTimes.push(deserend.user / 1000);
     }
-    const minSer = Math.min(...serTimes);
-    const minDeser = Math.min(...deserTimes);
+    const medSer = stats.median(serTimes);
+    const medDeser = stats.median(deserTimes);
     const byteSize = Buffer.from(serialized).length;
-    const serTime = Math.round(minSer);
-    const deserTime = Math.round(minDeser);
+    const serTime = Math.round(medSer);
+    const deserTime = Math.round(medDeser);
     const total = serTime + deserTime;
     results.push({
       name,
@@ -69,31 +67,18 @@ const runTests = (data) => {
     (data) => Buffer.from(JSON.stringify(data)),
     (buf) => JSON.parse(buf.toString()),
     "JSON"
-  ); /* 
+  );
+
+  bench(sia, desia, "Sia");
+
   bench(
-    (data) => compress(Buffer.from(JSON.stringify(data))),
-    (buf) => JSON.parse(decompress(buf).toString()),
-    "JSON + LZ4"
-  ); */
-  //bench(sia, desia, "Sia");
-  bench((data) => siaLab(data, null, 0, 3, 14800000), desiaLab, "Sia Lab");
-  /* bench(
-    (data) => compress(siaLab(data)),
-    (data) => desiaLab(decompress(data)),
-    "Sia Lab + LZ4"
-  ); */
-  /* bench(
     (data) => compress(sia(data)),
     (data) => desia(decompress(data)),
     "Sia + LZ4"
-  );*/
-  /* bench(msgpack.encode, msgpack.decode, "MessagePack");
-  bench(
-    (data) => cbor.encodeOne(data, { highWaterMark: 33554432 }),
-    cbor.decode,
-    "CBOR",
-    10 // CBOR is horribly slow
-  ); */
+  );
+
+  bench(msgpack.encode, msgpack.decode, "MessagePack");
+  bench((data) => cborX.encode(data), cborX.decode, "CBOR-X", 100);
   console.log();
 
   const jsonResults = results.filter(({ name }) => name == "JSON").pop();
@@ -113,8 +98,7 @@ const runTests = (data) => {
 const dataset = [
   {
     title: "Large file",
-    json:
-      "https://github.com/json-iterator/test-data/raw/master/large-file.json",
+    json: "https://github.com/json-iterator/test-data/raw/master/large-file.json",
   },
 ];
 

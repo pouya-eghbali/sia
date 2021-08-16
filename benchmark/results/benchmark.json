@@ -1,0 +1,39 @@
+{
+  "name": "Serialization",
+  "date": "2021-08-16T10:59:54.924Z",
+  "version": "1.0.0",
+  "results": [
+    {
+      "name": "JSON",
+      "ops": 3.7,
+      "margin": 8.92,
+      "percentSlower": 0
+    },
+    {
+      "name": "Sia",
+      "ops": 3.6,
+      "margin": 6.12,
+      "percentSlower": 2.7
+    },
+    {
+      "name": "MessagePack",
+      "ops": 0.8,
+      "margin": 2.14,
+      "percentSlower": 78.38
+    },
+    {
+      "name": "CBOR-X",
+      "ops": 3,
+      "margin": 0.76,
+      "percentSlower": 18.92
+    }
+  ],
+  "fastest": {
+    "name": "JSON",
+    "index": 0
+  },
+  "slowest": {
+    "name": "MessagePack",
+    "index": 2
+  }
+}
