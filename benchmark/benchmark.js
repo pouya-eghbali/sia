@@ -1,6 +1,6 @@
 const fetch = require("node-fetch");
 const prettyBytes = require("pretty-bytes");
-const msgpack = require("msgpack5")();
+const msgpackr = require("msgpackr");
 const cborX = require("cbor-x");
 const Table = require("cli-table3");
 const LZ4 = require("lz4");
@@ -33,7 +33,7 @@ const runTests = (data) => {
   });
   const results = [];
   const sum = (a, b) => a + b;
-  const bench = (serialize, deserialize, name, n = 100) => {
+  const bench = (serialize, deserialize, name, n = 10000) => {
     console.log(`Running benchmarks for ${name}, ${n} loops`);
     const serTimes = [];
     const deserTimes = [];
@@ -45,8 +45,8 @@ const runTests = (data) => {
       const deserstart = process.cpuUsage();
       const result = deserialize(serialized);
       const deserend = process.cpuUsage(deserstart);
-      serTimes.push(serend.user / 1000);
-      deserTimes.push(deserend.user / 1000);
+      serTimes.push(serend.user);
+      deserTimes.push(deserend.user);
     }
     const medSer = stats.median(serTimes);
     const medDeser = stats.median(deserTimes);
@@ -70,14 +70,14 @@ const runTests = (data) => {
   );
 
   bench(sia, desia, "Sia");
-
+  /* 
   bench(
     (data) => compress(sia(data)),
     (data) => desia(decompress(data)),
     "Sia + LZ4"
-  );
+  ); */
 
-  bench(msgpack.encode, msgpack.decode, "MessagePack");
+  bench(msgpackr.pack, msgpackr.unpack, "MessagePack");
   bench((data) => cborX.encode(data), cborX.decode, "CBOR-X", 100);
   console.log();
 

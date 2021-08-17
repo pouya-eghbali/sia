@@ -22,10 +22,13 @@
     "eslint-plugin-jest": "^24.4.0",
     "jest": "^26.4.2",
     "lz4": "^0.6.3",
-    "msgpack5": "^4.2.1",
+    "msgpackr": "^1.4.2",
     "node-fetch": "^2.6.1",
     "prettier": "^2.3.2",
     "pretty-bytes": "^5.4.0",
     "stats-lite": "^2.2.0"
+  },
+  "dependencies": {
+    "utf8-buffer": "^1.0.0"
   }
 }

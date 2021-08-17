@@ -195,7 +195,7 @@ class Sia {
       case `[object Object]`: {
         if (item.constructor === Object) {
           this.startObject();
-          for (const key in item) {
+          for (const key of Object.keys(item)) {
             this.addString(key);
             this.serializeItem(item[key]);
           }
@@ -440,13 +440,9 @@ class DeSia {
     return uInt64;
   }
   readUTF8(length) {
-    const utf8 = this.buffer.toString(
-      "utf8",
-      this.offset,
-      this.offset + length
-    );
+    const str = this.buffer.toString("utf8", this.offset, this.offset + length);
     this.offset += length;
-    return utf8;
+    return str;
   }
   deserializeBlocks(buf, nBlocks = 1) {
     this.buffer = buf;
