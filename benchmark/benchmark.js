@@ -5,6 +5,7 @@ const cborX = require("cbor-x");
 const Table = require("cli-table3");
 const LZ4 = require("lz4");
 const { sia, desia } = require("..");
+const lab = require("../lab");
 const stats = require("stats-lite");
 
 const compress = (input) => {
@@ -19,7 +20,7 @@ const decompress = (input) => {
   return uncompressed.slice(0, uncompressedSize);
 };
 
-const runTests = (data) => {
+const runTests = (data, samples) => {
   const table = new Table({
     head: [
       "Name",
@@ -33,7 +34,7 @@ const runTests = (data) => {
   });
   const results = [];
   const sum = (a, b) => a + b;
-  const bench = (serialize, deserialize, name, n = 10000) => {
+  const bench = (serialize, deserialize, name, n = samples) => {
     console.log(`Running benchmarks for ${name}, ${n} loops`);
     const serTimes = [];
     const deserTimes = [];
@@ -43,13 +44,13 @@ const runTests = (data) => {
       serialized = serialize(data);
       const serend = process.cpuUsage(serstart);
       const deserstart = process.cpuUsage();
-      const result = deserialize(serialized);
+      deserialize(serialized);
       const deserend = process.cpuUsage(deserstart);
       serTimes.push(serend.user);
       deserTimes.push(deserend.user);
     }
-    const medSer = stats.median(serTimes);
-    const medDeser = stats.median(deserTimes);
+    const medSer = Math.min(...serTimes);
+    const medDeser = Math.min(...deserTimes);
     const byteSize = Buffer.from(serialized).length;
     const serTime = Math.round(medSer);
     const deserTime = Math.round(medDeser);
@@ -70,6 +71,7 @@ const runTests = (data) => {
   );
 
   bench(sia, desia, "Sia");
+  bench(lab.sia, lab.desia, "Sia Lab");
   /* 
   bench(
     (data) => compress(sia(data)),
@@ -78,38 +80,56 @@ const runTests = (data) => {
   ); */
 
   bench(msgpackr.pack, msgpackr.unpack, "MessagePack");
-  bench((data) => cborX.encode(data), cborX.decode, "CBOR-X", 100);
+  bench((data) => cborX.encode(data), cborX.decode, "CBOR-X");
   console.log();
+
+  const getTime = (ns) => {
+    if (ns > 5000) return `${Math.round(ns / 1000)}ms`;
+    return `${ns}ns`;
+  };
 
   const jsonResults = results.filter(({ name }) => name == "JSON").pop();
   const rows = results.map((stat) => [
     stat.name,
-    `${stat.serTime}ms`,
-    `${stat.deserTime}ms`,
-    `${stat.total}ms`,
+    getTime(stat.serTime),
+    getTime(stat.deserTime),
+    getTime(stat.total),
     Math.round((100 * stat.total) / jsonResults.total) / 100,
     prettyBytes(stat.byteSize),
     Math.round((100 * stat.byteSize) / jsonResults.byteSize) / 100,
   ]);
   table.push(...rows);
   console.log(table.toString());
+  console.log();
 };
 
 const dataset = [
   {
+    title: "Tiny file",
+    url: "https://jsonplaceholder.typicode.com/users/1",
+    samples: 10000,
+  },
+  {
+    title: "Small file",
+    url: "https://jsonplaceholder.typicode.com/comments",
+    samples: 2000,
+  },
+  {
     title: "Large file",
-    json: "https://github.com/json-iterator/test-data/raw/master/large-file.json",
+    url: "https://github.com/json-iterator/test-data/raw/master/large-file.json",
+    samples: 250,
   },
 ];
 
 console.log("Downloading the test data");
 
 const start = async () => {
-  for (const { title, json } of dataset) {
+  for (const { title, url, samples } of dataset) {
     console.log(`Running tests on "${title}"`);
-    await fetch(json)
+    await fetch(url)
       .then((resp) => resp.json())
-      .then(runTests);
+      .then((data) => runTests(data, samples))
+      .catch(console.trace);
   }
 };
 

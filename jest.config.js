@@ -1,6 +1,7 @@
 module.exports = {
   collectCoverageFrom: [
     "!benchmark/**/*",
+    "!lab/**/*",
     "!docs/**/*",
     "!jest.config.js",
     "!coverage/**/*",
