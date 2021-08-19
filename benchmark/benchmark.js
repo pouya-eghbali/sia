@@ -84,7 +84,7 @@ const runTests = (data, samples) => {
   console.log();
 
   const getTime = (ns) => {
-    if (ns > 5000) return `${Math.round(ns / 1000)}ms`;
+    if (ns > 10000) return `${Math.round(ns / 1000)}ms`;
     return `${ns}ns`;
   };
 
@@ -112,12 +112,17 @@ const dataset = [
   {
     title: "Small file",
     url: "https://jsonplaceholder.typicode.com/comments",
-    samples: 2000,
+    samples: 1000,
   },
   {
     title: "Large file",
+    url: "https://jsonplaceholder.typicode.com/photos",
+    samples: 1000,
+  },
+  {
+    title: "Monster file",
     url: "https://github.com/json-iterator/test-data/raw/master/large-file.json",
-    samples: 250,
+    samples: 100,
   },
 ];
 

@@ -33,7 +33,7 @@ class Sia {
     this.bufferedBlocks = 0;
   }
   writeUTF8Short(str, offset) {
-    return str.length > 80
+    return str.length > 60
       ? this.buffer.write(str, offset)
       : utf8.pack(str, this.buffer, offset) - offset;
   }
@@ -516,8 +516,10 @@ class DeSia {
     return uInt64;
   }
   readUTF8Short(length) {
-    const str = this.buffer.toString("utf8", this.offset, this.offset + length);
-
+    const str =
+      length < 10
+        ? utf8.unpack(this.buffer, this.offset, this.offset + length)
+        : this.buffer.toString("utf8", this.offset, this.offset + length);
     this.offset += length;
     return str;
   }
