@@ -211,8 +211,8 @@ class Sia {
     const argsRef = this.serializeItem(args);
     const typeRef = this.addString(constructor);
     this.writeUInt8(SIA_TYPES.constructor);
-    this.writeUIntHS(typeRef);
-    this.writeUIntHS(argsRef);
+    this.writeUInt8(typeRef);
+    this.writeUInt8(argsRef);
     return this.addBlock(true);
   }
   serializeItem(item) {
@@ -412,8 +412,8 @@ class DeSia {
       }
 
       case SIA_TYPES.constructor: {
-        const typeRef = this.readUIntHS();
-        const argsRef = this.readUIntHS();
+        const typeRef = this.readUInt8();
+        const argsRef = this.readUInt8();
         const name = this.map[typeRef];
         const args = this.map[argsRef];
         for (const entry of this.constructors) {

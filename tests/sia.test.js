@@ -108,7 +108,9 @@ test("Throw on unsupported type", () => {
 
 test("Throw on huge ref", () => {
   const sia = new Sia();
-  expect(() => sia.addRef(999999999999)).toThrow("Ref size is too big");
+  expect(() => sia.addRef(999999999999)).toThrow(
+    "Ref size 999999999999 is too big"
+  );
 });
 
 test("Stream", () => {
