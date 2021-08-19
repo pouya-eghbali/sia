@@ -40,6 +40,10 @@ class Sia {
   writeUTF8(str, offset) {
     return this.buffer.write(str, offset);
   }
+  writeUIntN(bytes, number) {
+    this.buffer.writeUIntLE(number, this.offset, bytes);
+    this.offset += bytes;
+  }
   writeUInt8(number) {
     this.buffer.writeUInt8(number, this.offset);
     this.offset += 1;
@@ -148,7 +152,6 @@ class Sia {
         this.writeUInt8(SIA_TYPES.float64);
         this.writeDouble(number);
       }
-      //for (const byte of bytes) this.writeUInt8(byte);
       const block = this.addBlock(true);
       this.map.set(number, block);
       return block;
@@ -210,9 +213,26 @@ class Sia {
     const { args, constructor } = this.itemToSia(item);
     const argsRef = this.serializeItem(args);
     const typeRef = this.addString(constructor);
+    let argsRefSize = 0;
+    let typeRefSize = 0;
+    if (typeRef < 0x100) {
+      typeRefSize = 1;
+    } else if (typeRef < 0x10000) {
+      typeRefSize = 2;
+    } else if (typeRef < 0x10000000) {
+      typeRefSize = 3;
+    }
+    if (argsRef < 0x100) {
+      argsRefSize = 1;
+    } else if (argsRef < 0x10000) {
+      argsRefSize = 2;
+    } else if (argsRef < 0x10000000) {
+      argsRefSize = 3;
+    }
     this.writeUInt8(SIA_TYPES.constructor);
-    this.writeUInt8(typeRef);
-    this.writeUInt8(argsRef);
+    this.writeUInt8(typeRefSize + argsRefSize * 0x10);
+    this.writeUIntN(typeRefSize, typeRef);
+    this.writeUIntN(argsRefSize, argsRef);
     return this.addBlock(true);
   }
   serializeItem(item) {
@@ -412,8 +432,11 @@ class DeSia {
       }
 
       case SIA_TYPES.constructor: {
-        const typeRef = this.readUInt8();
-        const argsRef = this.readUInt8();
+        const size = this.readUInt8();
+        const typeSize = size & 0xf;
+        const argsSize = size >> 4;
+        const typeRef = this.readUIntN(typeSize);
+        const argsRef = this.readUIntN(argsSize);
         const name = this.map[typeRef];
         const args = this.map[argsRef];
         for (const entry of this.constructors) {
@@ -485,7 +508,7 @@ class DeSia {
         throw error;
     }
   }
-  readNativeUIntN(n) {
+  readUIntN(n) {
     const intN = this.buffer.readUIntLE(this.offset, n);
     this.offset += n;
     return intN;

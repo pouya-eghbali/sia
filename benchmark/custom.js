@@ -33,7 +33,7 @@ const constructors = [
 const sia = new Sia({ constructors });
 const desia = new DeSia({ constructors });
 
-const options = { minSamples: 256 };
+const options = { minSamples: 100 };
 
 // add tests
 suite
