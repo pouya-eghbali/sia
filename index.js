@@ -124,7 +124,7 @@ class Sia {
     } else if (number < 0x10000) {
       this.writeUInt8(SIA_TYPES.ref16);
       this.writeUInt16(number);
-    } else if (number < 0x10000000) {
+    } else if (number < 0x100000000) {
       this.writeUInt8(SIA_TYPES.ref32);
       this.writeUInt32(number);
     } else {
@@ -219,14 +219,14 @@ class Sia {
       typeRefSize = 1;
     } else if (typeRef < 0x10000) {
       typeRefSize = 2;
-    } else if (typeRef < 0x10000000) {
+    } else if (typeRef < 0x100000000) {
       typeRefSize = 3;
     }
     if (argsRef < 0x100) {
       argsRefSize = 1;
     } else if (argsRef < 0x10000) {
       argsRefSize = 2;
-    } else if (argsRef < 0x10000000) {
+    } else if (argsRef < 0x100000000) {
       argsRefSize = 3;
     }
     this.writeUInt8(SIA_TYPES.constructor);

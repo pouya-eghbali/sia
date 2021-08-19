@@ -1,6 +1,7 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
 const utf8 = require("utf8-buffer");
+const int = require("./int");
 
 const { toString } = Object.prototype;
 const typeOf = (item) => toString.call(item);
@@ -39,6 +40,14 @@ class Sia {
   }
   writeUTF8(str, offset) {
     return this.buffer.write(str, offset);
+  }
+  writeUIntN(bytes, number) {
+    this.buffer.writeUIntLE(number, this.offset, bytes);
+    this.offset += bytes;
+  }
+  writeIntN(bytes, number) {
+    this.buffer.writeIntLE(number, this.offset, bytes);
+    this.offset += bytes;
   }
   writeUInt8(number) {
     this.buffer.writeUInt8(number, this.offset);
@@ -120,7 +129,7 @@ class Sia {
     } else if (number < 0x10000) {
       this.writeUInt8(SIA_TYPES.ref16);
       this.writeUInt16(number);
-    } else if (number < 0x10000000) {
+    } else if (number < 0x100000000) {
       this.writeUInt8(SIA_TYPES.ref32);
       this.writeUInt32(number);
     } else {
@@ -136,19 +145,17 @@ class Sia {
   addInteger(number) {
     const cached = this.map.get(number);
     if (!cached) {
-      if (number < 0x100) {
-        this.writeUInt8(SIA_TYPES.int8);
-        this.writeUInt8(number);
-      } else if (number >> 0 === number) {
-        // fits in int32
-        this.writeUInt8(SIA_TYPES.int32);
-        this.writeInt32(number);
+      if (number < 0) {
+        const byes = int.byteSizeOfNegative(number);
+        const type = int.negativeNumberTypes[byes];
+        this.writeUInt8(type);
+        this.writeIntN(byes, number);
       } else {
-        // write a double
-        this.writeUInt8(SIA_TYPES.float64);
-        this.writeDouble(number);
+        const byes = int.byteSizeOfPositive(number);
+        const type = int.positiveNumberTypes[byes];
+        this.writeUInt8(type);
+        this.writeUIntN(byes, number);
       }
-      //for (const byte of bytes) this.writeUInt8(byte);
       const block = this.addBlock(true);
       this.map.set(number, block);
       return block;
@@ -210,9 +217,26 @@ class Sia {
     const { args, constructor } = this.itemToSia(item);
     const argsRef = this.serializeItem(args);
     const typeRef = this.addString(constructor);
+    let argsRefSize = 0;
+    let typeRefSize = 0;
+    if (typeRef < 0x100) {
+      typeRefSize = 1;
+    } else if (typeRef < 0x10000) {
+      typeRefSize = 2;
+    } else if (typeRef < 0x100000000) {
+      typeRefSize = 3;
+    }
+    if (argsRef < 0x100) {
+      argsRefSize = 1;
+    } else if (argsRef < 0x10000) {
+      argsRefSize = 2;
+    } else if (argsRef < 0x100000000) {
+      argsRefSize = 3;
+    }
     this.writeUInt8(SIA_TYPES.constructor);
-    this.writeUIntHS(typeRef);
-    this.writeUIntHS(argsRef);
+    this.writeUInt8(typeRefSize + argsRefSize * 0x10);
+    this.writeUIntN(typeRefSize, typeRef);
+    this.writeUIntN(argsRefSize, argsRef);
     return this.addBlock(true);
   }
   serializeItem(item) {
@@ -376,6 +400,20 @@ class DeSia {
         return number;
       }
 
+      case SIA_TYPES.int16: {
+        const number = this.readUInt16();
+        this.addBlock(number);
+        if (this.objects.curr) this.objects.curr.push(number);
+        return number;
+      }
+
+      case SIA_TYPES.int24: {
+        const number = this.readUIntN(3);
+        this.addBlock(number);
+        if (this.objects.curr) this.objects.curr.push(number);
+        return number;
+      }
+
       case SIA_TYPES.int32: {
         const number = this.readInt32();
         this.addBlock(number);
@@ -412,8 +450,11 @@ class DeSia {
       }
 
       case SIA_TYPES.constructor: {
-        const typeRef = this.readUIntHS();
-        const argsRef = this.readUIntHS();
+        const size = this.readUInt8();
+        const typeSize = size & 0xf;
+        const argsSize = size >> 4;
+        const typeRef = this.readUIntN(typeSize);
+        const argsRef = this.readUIntN(argsSize);
         const name = this.map[typeRef];
         const args = this.map[argsRef];
         for (const entry of this.constructors) {
@@ -485,7 +526,7 @@ class DeSia {
         throw error;
     }
   }
-  readNativeUIntN(n) {
+  readUIntN(n) {
     const intN = this.buffer.readUIntLE(this.offset, n);
     this.offset += n;
     return intN;
