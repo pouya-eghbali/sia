@@ -1,5 +1,5 @@
 const Benchmark = require("benchmark");
-const { Sia, DeSia } = require("..");
+const { Sia, DeSia } = require("../lab");
 
 const suite = new Benchmark.Suite();
 
@@ -35,20 +35,28 @@ const desia = new DeSia({ constructors });
 
 const options = { minSamples: 100 };
 
+const comment = {
+  postId: 1,
+  id: 1,
+  name: "id labore ex et quam laborum",
+  email: "Eliseo@gardner.biz",
+  body: "laudantium enim quasi est quidem magnam voluptate ipsam eos\ntempora quo necessitatibus\ndolor quam autem quasi\nreiciendis et nam sapiente accusantium",
+};
+
 // add tests
 suite
   .add(
     "JSON",
     function () {
-      const buf = Buffer.from(JSON.stringify(data, replacer));
-      JSON.parse(buf.toString(), reviver);
+      const buf = Buffer.from(JSON.stringify(comment));
+      JSON.parse(buf.toString());
     },
     options
   )
   .add(
     "Sia",
     function () {
-      const buf = sia.serialize(data);
+      const buf = sia.serialize(comment);
       desia.deserialize(buf);
     },
     options

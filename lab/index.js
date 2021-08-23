@@ -1,6 +1,6 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
-const utf8 = require("utf8-buffer");
+const utfz = require("./utfz");
 const int = require("./int");
 
 const { toString } = Object.prototype;
@@ -13,7 +13,6 @@ class Sia {
     size = 33554432,
     constructors = builtinConstructors,
   } = {}) {
-    this.strMap = {};
     this.map = new Map();
     this.buffer = Buffer.alloc(size);
     this.offset = 0;
@@ -23,22 +22,14 @@ class Sia {
     this.nBlocks = nBlocks;
     this.bufferedBlocks = 0;
     this.constructors = constructors;
+    this.strings = 0;
   }
   reset() {
-    this.refCount = 0;
-    this.strMap = {};
-    this.map = new Map();
     this.offset = 0;
-    this.blocks = 0;
-    this.dataBlocks = 0;
-    this.bufferedBlocks = 0;
+    this.strings = 0;
+    this.map = new Map();
   }
-  writeUTF8Short(str, offset) {
-    return str.length > 60
-      ? this.buffer.write(str, offset)
-      : utf8.pack(str, this.buffer, offset) - offset;
-  }
-  writeUTF8(str, offset) {
+  writeString(str, offset) {
     return this.buffer.write(str, offset);
   }
   writeUIntN(bytes, number) {
@@ -73,69 +64,57 @@ class Sia {
     this.buffer.writeDoubleLE(number, this.offset);
     this.offset += 8;
   }
-  addBlock(data = false) {
-    this.blocks++;
-    this.blockReady();
-    if (data) return this.dataBlocks++;
-  }
-  blockReady() {
-    if (!this.onBlocksReady) return;
-    if (++this.bufferedBlocks >= this.nBlocks) {
-      const blocks = this.buffer.slice(0, this.offset);
-      this.offset = 0;
-      this.onBlocksReady(blocks);
-      this.bufferedBlocks = 0;
-    }
-  }
-  allBlocksReady() {
-    if (!this.onBlocksReady) return;
-    const blocks = this.buffer.slice(this.lastOffset || 0, this.offset);
-    this.lastOffset = this.offset;
-    this.onBlocksReady(blocks);
-  }
   addString(string) {
-    const cached = this.map.get(string);
-    if (!cached) {
-      const byteLength = string.length * 3;
-      if (byteLength < 0x100) {
-        this.writeUInt8(SIA_TYPES.string8);
-        const length = this.writeUTF8Short(string, this.offset + 1);
-        this.buffer.writeUInt8(length, this.offset);
-        this.offset += length + 1;
-      } else if (byteLength < 0x10000) {
-        this.writeUInt8(SIA_TYPES.string16);
-        const length = this.writeUTF8(string, this.offset + 2);
-        this.buffer.writeUInt16LE(length, this.offset);
-        this.offset += length + 2;
-      } else {
-        this.writeUInt8(SIA_TYPES.string32);
-        const length = this.writeUTF8(string, this.offset + 4);
-        this.buffer.writeUInt16LE(length, this.offset);
-        this.offset += length + 4;
-      }
-      const block = this.addBlock(true);
-      this.map.set(string, block);
-      return block;
-    }
-    this.addRef(cached);
-    return cached;
-  }
-  addRef(number) {
-    this.refCount++;
-    if (number < 0x100) {
-      // fits in int32
-      this.writeUInt8(SIA_TYPES.ref8);
-      this.writeUInt8(number);
-    } else if (number < 0x10000) {
-      this.writeUInt8(SIA_TYPES.ref16);
-      this.writeUInt16(number);
-    } else if (number < 0x100000000) {
-      this.writeUInt8(SIA_TYPES.ref32);
-      this.writeUInt32(number);
+    const { length } = string;
+    const maxBytes = length * 3;
+    // See benchmarks/string/both
+    if (length < 24) {
+      this.writeUInt8(SIA_TYPES.utfz);
+      const byteLength = utfz.pack(
+        string,
+        length,
+        this.buffer,
+        this.offset + 1
+      );
+      this.buffer.writeUInt8(byteLength, this.offset);
+      this.offset += byteLength + 1;
+    } else if (maxBytes < 0x100) {
+      //if (length < 128) {
+      this.writeUInt8(SIA_TYPES.string8);
+      const byteLength = this.writeString(string, this.offset + 1);
+      this.buffer.writeUInt8(byteLength, this.offset);
+      this.offset += byteLength + 1;
+      //} else {
+      //  this.writeUInt8(SIA_TYPES.string8);
+      //  const byteLength = this.writeString(string, this.offset + 1);
+      //  this.buffer.writeUInt8(byteLength, this.offset);
+      //  this.offset += byteLength + 1;
+      //}
+    } else if (maxBytes < 0x10000) {
+      this.writeUInt8(SIA_TYPES.string16);
+      const byteLength = this.writeString(string, this.offset + 2);
+      this.buffer.writeUInt16LE(byteLength, this.offset);
+      this.offset += byteLength + 2;
     } else {
-      throw `Ref size ${number} is too big`;
+      this.writeUInt8(SIA_TYPES.string32);
+      const byteLength = this.writeString(string, this.offset + 4);
+      this.buffer.writeUInt32LE(byteLength, this.offset);
+      this.offset += byteLength + 4;
     }
-    this.addBlock();
+  }
+  addRef(ref) {
+    if (ref < 0x100) {
+      this.writeUInt8(SIA_TYPES.ref8);
+      this.writeUInt8(ref);
+    } else if (ref < 0x10000) {
+      this.writeUInt8(SIA_TYPES.ref16);
+      this.writeUInt16(ref);
+    } else if (ref < 0x100000000) {
+      this.writeUInt8(SIA_TYPES.ref32);
+      this.writeUInt32(ref);
+    } else {
+      throw `Ref size ${ref} is too big`;
+    }
   }
   addNumber(number) {
     // TODO: make this faster https://jsben.ch/26igA
@@ -143,37 +122,21 @@ class Sia {
     return this.addFloat(number);
   }
   addInteger(number) {
-    const cached = this.map.get(number);
-    if (!cached) {
-      if (number < 0) {
-        const byes = int.byteSizeOfNegative(number);
-        const type = int.negativeNumberTypes[byes];
-        this.writeUInt8(type);
-        this.writeIntN(byes, number);
-      } else {
-        const byes = int.byteSizeOfPositive(number);
-        const type = int.positiveNumberTypes[byes];
-        this.writeUInt8(type);
-        this.writeUIntN(byes, number);
-      }
-      const block = this.addBlock(true);
-      this.map.set(number, block);
-      return block;
+    if (number < 0) {
+      const byes = int.byteSizeOfNegative(number);
+      const type = int.negativeNumberTypes[byes];
+      this.writeUInt8(type);
+      this.writeIntN(byes, number);
+    } else {
+      const byes = int.byteSizeOfPositive(number);
+      const type = int.positiveNumberTypes[byes];
+      this.writeUInt8(type);
+      this.writeUIntN(byes, number);
     }
-    this.addRef(cached);
-    return cached;
   }
   addFloat(number) {
-    const cached = this.map.get(number);
-    if (!cached) {
-      this.writeUInt8(SIA_TYPES.float64);
-      this.writeDouble(number);
-      const block = this.addBlock(true);
-      this.map.set(number, block);
-      return block;
-    }
-    this.addRef(cached);
-    return cached;
+    this.writeUInt8(SIA_TYPES.float64);
+    this.writeDouble(number);
   }
   startArray(length) {
     if (length < 0x100) {
@@ -183,35 +146,28 @@ class Sia {
       this.writeUInt8(SIA_TYPES.arrayStart16);
       this.writeUInt16(length);
     }
-    this.addBlock();
   }
-  endArray() {
-    this.writeUInt8(SIA_TYPES.arrayEnd);
-    return this.addBlock(true);
-  }
-  startObject() {
-    this.writeUInt8(SIA_TYPES.objectStart);
-    this.addBlock();
+  startObject(length) {
+    //if (length < 0x100) {
+    this.writeUInt8(SIA_TYPES.objectStart8);
+    //  this.writeUInt8(length);
+    //} else if (length < 0x10000) {
+    //  this.writeUInt8(SIA_TYPES.objectStart16);
+    //  this.writeUInt16(length);
+    //}
   }
   endObject() {
     this.writeUInt8(SIA_TYPES.objectEnd);
-    return this.addBlock(true);
   }
   addBoolean(bool) {
     const type = bool ? SIA_TYPES.true : SIA_TYPES.false;
     this.writeUInt8(type);
-    const block = this.addBlock(true);
-    return block;
   }
   addNull() {
     this.writeUInt8(SIA_TYPES.null);
-    const block = this.addBlock(true);
-    return block;
   }
   addUndefined() {
     this.writeUInt8(SIA_TYPES.undefined);
-    const block = this.addBlock(true);
-    return block;
   }
   addCustomType(item) {
     const { args, constructor } = this.itemToSia(item);
@@ -237,43 +193,47 @@ class Sia {
     this.writeUInt8(typeRefSize + argsRefSize * 0x10);
     this.writeUIntN(typeRefSize, typeRef);
     this.writeUIntN(argsRefSize, argsRef);
-    return this.addBlock(true);
   }
   serializeItem(item) {
-    const type = typeOf(item);
+    const type = typeof item;
     switch (type) {
-      case `[object String]`:
+      case "string":
         return this.addString(item);
 
-      case `[object Null]`:
-        return this.addNull(item);
-
-      case `[object Undefined]`:
+      case "undefined":
         return this.addUndefined(item);
 
-      case `[object Number]`:
+      case "number":
         return this.addNumber(item);
 
-      case `[object Boolean]`:
+      case "boolean":
         return this.addBoolean(item);
 
-      case `[object Object]`: {
-        if (item.constructor === Object) {
+      case "object": {
+        if (item === null) {
+          return this.addNull(item);
+        } else if (item.constructor === Object) {
+          //const keys = Object.keys(item);
           this.startObject();
-          for (const key of Object.keys(item)) {
-            this.addString(key);
+          for (const key in item) {
+            const ref = this.map.get(key);
+            if (!ref) {
+              this.map.set(key, this.strings++);
+              this.addString(key);
+            } else {
+              this.addRef(ref);
+            }
             this.serializeItem(item[key]);
           }
           return this.endObject();
+        } else if (Array.isArray(item)) {
+          this.startArray(item.length);
+          for (const m of item) this.serializeItem(m);
+          //return this.endArray();
+          return;
         } else {
           return this.addCustomType(item);
         }
-      }
-
-      case `[object Array]`: {
-        this.startArray(item.length);
-        for (const m of item) this.serializeItem(m);
-        return this.endArray();
       }
 
       default:
@@ -296,48 +256,7 @@ class Sia {
     this.data = data;
     this.reset();
     this.serializeItem(this.data);
-    this.writeUInt8(SIA_TYPES.end);
-    this.allBlocksReady();
     return this.buffer.slice(0, this.offset);
-  }
-}
-
-class CoolObject {
-  constructor() {
-    this.obj = {};
-    this.key = null;
-  }
-  push(item) {
-    if (this.key === null) this.key = item;
-    else {
-      this.obj[this.key] = item;
-      this.key = null;
-    }
-  }
-}
-
-class CoolArray {
-  constructor(length) {
-    this.arr = new Array(length);
-    this.index = 0;
-  }
-  push(item) {
-    this.arr[this.index++] = item;
-  }
-}
-
-class LinkedList {
-  constructor(curr) {
-    this.curr = curr;
-  }
-  link(next) {
-    next.prev = this.curr;
-    this.curr = next;
-  }
-  unlink() {
-    const { curr } = this;
-    this.curr = curr.prev;
-    return curr;
   }
 }
 
@@ -352,101 +271,114 @@ class DeSia {
     this.blocks = 0;
     this.offset = 0;
     this.onEnd = onEnd;
-    this.ended = false;
-    this.objects = new LinkedList();
+    this.refMap = new Array(mapSize);
+    this.strings = 0;
   }
   reset() {
     this.blocks = 0;
     this.offset = 0;
-    this.ended = false;
+    this.strings = 0;
   }
-  addBlock(value) {
-    this.map[this.blocks++] = value;
-  }
-  skipBlock() {
-    this.blocks++;
-  }
-  readBlock() {
-    const blockType = this.readUInt8();
+  readKey(blockType) {
     switch (blockType) {
+      case SIA_TYPES.ref8: {
+        const ref = this.readUInt8();
+        return this.refMap[ref];
+      }
+
+      case SIA_TYPES.ref16: {
+        const ref = this.readUInt16();
+        return this.refMap[ref];
+      }
+
+      case SIA_TYPES.ref32: {
+        const ref = this.readUInt32();
+        return this.refMap[ref];
+      }
+
+      case SIA_TYPES.utfz: {
+        const length = this.readUInt8();
+        const str = utfz.unpack(this.buffer, length, this.offset);
+        this.offset += length;
+        this.refMap[this.strings++] = str;
+        return str;
+      }
+
       case SIA_TYPES.string8: {
         const length = this.readUInt8();
-        const string = this.readUTF8Short(length);
-        this.addBlock(string);
-        if (this.objects.curr) this.objects.curr.push(string);
-        return string;
+        const str = this.readString(length);
+        this.refMap[this.strings++] = str;
+        return str;
       }
 
       case SIA_TYPES.string16: {
         const length = this.readUInt16();
-        const string = this.readUTF8(length);
-        this.addBlock(string);
-        if (this.objects.curr) this.objects.curr.push(string);
-        return string;
+        const str = this.readString(length);
+        this.refMap[this.strings++] = str;
+        return str;
       }
 
       case SIA_TYPES.string32: {
         const length = this.readUInt32();
-        const string = this.readUTF8(length);
-        this.addBlock(string);
-        if (this.objects.curr) this.objects.curr.push(string);
-        return string;
+        const str = this.readString(length);
+        this.refMap[this.strings++] = str;
+        return str;
       }
 
-      case SIA_TYPES.int8: {
-        const number = this.readUInt8();
-        this.addBlock(number);
-        if (this.objects.curr) this.objects.curr.push(number);
-        return number;
+      default:
+        throw `Key of type ${blockType} is invalid.`;
+    }
+  }
+  readBlock() {
+    const blockType = this.readUInt8();
+    switch (blockType) {
+      case SIA_TYPES.utfz: {
+        const length = this.readUInt8();
+        const str = utfz.unpack(this.buffer, length, this.offset);
+        this.offset += length;
+        //this.refMap[this.strings++] = str;
+        return str;
       }
 
-      case SIA_TYPES.int16: {
-        const number = this.readUInt16();
-        this.addBlock(number);
-        if (this.objects.curr) this.objects.curr.push(number);
-        return number;
+      case SIA_TYPES.string8: {
+        const length = this.readUInt8();
+        const str = this.readString(length);
+        //this.refMap[this.strings++] = str;
+        return str;
       }
 
-      case SIA_TYPES.int24: {
-        const number = this.readUIntN(3);
-        this.addBlock(number);
-        if (this.objects.curr) this.objects.curr.push(number);
-        return number;
+      case SIA_TYPES.string16: {
+        const length = this.readUInt16();
+        const str = this.readString(length);
+        //this.refMap[this.strings++] = str;
+        return str;
       }
 
-      case SIA_TYPES.int32: {
-        const number = this.readInt32();
-        this.addBlock(number);
-        if (this.objects.curr) this.objects.curr.push(number);
-        return number;
+      case SIA_TYPES.string32: {
+        const length = this.readUInt32();
+        const str = this.readString(length);
+        //this.refMap[this.strings++] = str;
+        return str;
       }
 
-      case SIA_TYPES.ref8: {
-        const number = this.readUInt8();
-        const value = this.map[number];
-        if (this.objects.curr) this.objects.curr.push(value);
-        return value;
+      case SIA_TYPES.uint8: {
+        return this.readUInt8();
       }
 
-      case SIA_TYPES.ref16: {
-        const number = this.readUInt16();
-        const value = this.map[number];
-        if (this.objects.curr) this.objects.curr.push(value);
-        return value;
+      case SIA_TYPES.uint16: {
+        return this.readUInt16();
       }
 
-      case SIA_TYPES.ref32: {
-        const number = this.readUInt32();
-        const value = this.map[number];
-        if (this.objects.curr) this.objects.curr.push(value);
-        return value;
+      case SIA_TYPES.uint24: {
+        return this.readUIntN(3);
+      }
+
+      case SIA_TYPES.uint32: {
+        return this.readInt32();
       }
 
       case SIA_TYPES.float64: {
-        const number = this.readDouble();
-        this.addBlock(number);
-        if (this.objects.curr) this.objects.curr.push(number);
-        return number;
+        return this.readDouble();
       }
 
       case SIA_TYPES.constructor: {
@@ -460,64 +392,51 @@ class DeSia {
         for (const entry of this.constructors) {
           if (entry.name === name) {
             const value = entry.build(...args);
-            this.addBlock(value);
             return value;
           }
         }
       }
 
       case SIA_TYPES.false:
-        if (this.objects.curr) this.objects.curr.push(false);
-        this.skipBlock();
         return false;
 
       case SIA_TYPES.true:
-        if (this.objects.curr) this.objects.curr.push(true);
-        this.skipBlock();
         return true;
 
       case SIA_TYPES.null:
-        if (this.objects.curr) this.objects.curr.push(null);
-        this.skipBlock();
         return null;
 
       case SIA_TYPES.undefined:
-        if (this.objects.curr) this.objects.curr.push(undefined);
-        this.skipBlock();
         return undefined;
 
-      case SIA_TYPES.end:
-        this.ended = true;
-        break;
-
-      case SIA_TYPES.objectStart: {
-        this.objects.link(new CoolObject());
-        break;
-      }
-
-      case SIA_TYPES.objectEnd: {
-        const { obj } = this.objects.unlink();
-        this.addBlock(obj);
-        if (this.objects.curr) this.objects.curr.push(obj);
+      case SIA_TYPES.objectStart8: {
+        const obj = {};
+        //let length = this.readUInt8();
+        let curr = this.buffer[this.offset++];
+        const { objectEnd } = SIA_TYPES;
+        while (curr !== objectEnd) {
+          obj[this.readKey(curr)] = this.readBlock();
+          curr = this.buffer[this.offset++];
+        }
         return obj;
+        //break;
       }
 
       case SIA_TYPES.arrayStart8: {
         const length = this.readUInt8();
-        this.objects.link(new CoolArray(length));
-        break;
+        const arr = new Array(length);
+        for (let i = 0; i < length; i++) {
+          arr[i] = this.readBlock();
+        }
+        return arr;
       }
 
       case SIA_TYPES.arrayStart16: {
         const length = this.readUInt16();
-        this.objects.link(new CoolArray(length));
-        break;
-      }
-
-      case SIA_TYPES.arrayEnd: {
-        const { arr } = this.objects.unlink();
-        this.addBlock(arr);
-        if (this.objects.curr) this.objects.curr.push(arr);
+        const arr = new Array(length);
+        for (let i = 0; i < length; i++) {
+          arr[i] = this.readBlock();
+        }
         return arr;
       }
 
@@ -556,39 +475,15 @@ class DeSia {
     this.offset += 8;
     return uInt64;
   }
-  readUTF8Short(length) {
-    const str =
-      length < 10
-        ? utf8.unpack(this.buffer, this.offset, this.offset + length)
-        : this.buffer.toString("utf8", this.offset, this.offset + length);
-    this.offset += length;
-    return str;
-  }
-  readUTF8(length) {
+  readString(length) {
     const str = this.buffer.toString("utf8", this.offset, this.offset + length);
     this.offset += length;
     return str;
   }
-  deserializeBlocks(buf, nBlocks = 1) {
-    this.buffer = buf;
-    this.offset = 0;
-    while (nBlocks--) {
-      const block = this.readBlock();
-      if (this.ended) {
-        if (this.onEnd) this.onEnd(this.lastBlock);
-        return;
-      }
-      this.lastBlock = block;
-    }
-  }
   deserialize(buffer) {
     this.buffer = buffer;
     this.reset();
-    while (true) {
-      const block = this.readBlock();
-      if (this.ended) return this.lastBlock;
-      this.lastBlock = block;
-    }
+    return this.readBlock();
   }
 }
 
@@ -604,3 +499,24 @@ module.exports.desia = desia;
 module.exports.Sia = Sia;
 module.exports.DeSia = DeSia;
 module.exports.constructors = builtinConstructors;
+
+/* (async () => {
+  const { diff } = require("deep-diff");
+  const fetch = require("node-fetch");
+  const prettyBytes = require("pretty-bytes");
+  const datasets = [
+    await fetch("https://jsonplaceholder.typicode.com/photos").then((resp) =>
+      resp.json()
+    ),
+    await fetch(
+      "https://github.com/json-iterator/test-data/raw/master/large-file.json"
+    ).then((resp) => resp.json()),
+  ];
+  for (data of datasets) {
+    const serialized = sia(data);
+    console.log(`Size: ${prettyBytes(serialized.length)}`);
+    const deserialized = desia(serialized);
+    console.log(diff(data, deserialized));
+  }
+})();
+ */
