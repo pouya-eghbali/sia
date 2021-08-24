@@ -3,6 +3,9 @@ const { Sia, DeSia } = require("..");
 const fetch = require("node-fetch");
 const deepEqual = require("deep-equal");
 
+const random = (n) =>
+  [...Array(n)].map((i) => (~~(Math.random() * 36)).toString(36)).join("");
+
 test("Serialize dates", () => {
   const date = new Date();
   const serialized = sia(date);
@@ -12,11 +15,17 @@ test("Serialize dates", () => {
 });
 
 test("Serialize integers", () => {
-  const integer = 42;
-  const serialized = sia(integer);
+  const integers = [0x10, 0x100, 0x10000, 0x100000000];
+  const serialized = sia(integers);
   const deserialized = desia(serialized);
-  expect(typeof deserialized).toEqual("number");
-  expect(deserialized).toEqual(integer);
+  expect(deserialized).toEqual(integers);
+});
+
+test("Serialize negative integers", () => {
+  const integers = [-0x10, -0x100, -0x10000, -0x100000000];
+  const serialized = sia(integers);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(integers);
 });
 
 test("Serialize floats", () => {
@@ -32,6 +41,30 @@ test("Serialize array of floats", () => {
   const serialized = sia(floats);
   const deserialized = desia(serialized);
   expect(deserialized).toEqual(floats);
+});
+
+test("Serialize big array", () => {
+  const strings = new Array(0x10000).fill("X");
+  const serialized = sia(strings);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(strings);
+});
+
+test("Serialize big strings", () => {
+  const strings = ["a".repeat(0x100), "b".repeat(0x10000)];
+  const serialized = sia(strings);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(strings);
+});
+
+test("Serialize object with big keys", () => {
+  const object = Object.fromEntries([
+    ["a".repeat(0x100), null],
+    ["b".repeat(0x10000), null],
+  ]);
+  const serialized = sia(object);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(object);
 });
 
 test("Serialize boolean", () => {
@@ -72,6 +105,26 @@ test("Serialize objects", () => {
   expect(deserialized).toEqual(object);
 });
 
+test("Serialize object with uint16 keys", () => {
+  const object = Object.fromEntries(
+    new Array(0x1200).fill().map(() => [random(40), null])
+  );
+  const objects = [object, object];
+  const serialized = sia(objects);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(objects);
+});
+
+test("Serialize object with uint32 keys", () => {
+  const object = Object.fromEntries(
+    new Array(0x12000).fill().map(() => [random(40), null])
+  );
+  const objects = [object, object];
+  const serialized = sia(objects);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(objects);
+});
+
 test("Serialize undefined", () => {
   const object = { abc: { xyz: undefined } };
   const serialized = sia(object);
@@ -88,7 +141,7 @@ test("Serialize custom classes", () => {
   const constructors = [
     {
       constructor: Person,
-      name: "Person",
+      code: 2,
       args: (item) => [item.name],
       build: (name) => new Person(name),
     },
@@ -99,6 +152,91 @@ test("Serialize custom classes", () => {
   const deserialized = desia.deserialize(sia.serialize(pouya));
   expect(deserialized).toBeInstanceOf(Person);
   expect(deserialized.name).toEqual("Pouya");
+});
+
+test("Serialize custom classes with uint16 code size", () => {
+  class Person {
+    constructor(name) {
+      this.name = name;
+    }
+  }
+  const constructors = [
+    {
+      constructor: Person,
+      code: 0x100,
+      args: (item) => [item.name],
+      build: (name) => new Person(name),
+    },
+  ];
+  const pouya = new Person("Pouya");
+  const sia = new Sia({ constructors });
+  const desia = new DeSia({ constructors });
+  const deserialized = desia.deserialize(sia.serialize(pouya));
+  expect(deserialized).toBeInstanceOf(Person);
+  expect(deserialized.name).toEqual("Pouya");
+});
+
+test("Serialize custom classes with uint32 code size", () => {
+  class Person {
+    constructor(name) {
+      this.name = name;
+    }
+  }
+  const constructors = [
+    {
+      constructor: Person,
+      code: 0x10000,
+      args: (item) => [item.name],
+      build: (name) => new Person(name),
+    },
+  ];
+  const pouya = new Person("Pouya");
+  const sia = new Sia({ constructors });
+  const desia = new DeSia({ constructors });
+  const deserialized = desia.deserialize(sia.serialize(pouya));
+  expect(deserialized).toBeInstanceOf(Person);
+  expect(deserialized.name).toEqual("Pouya");
+});
+
+test("Don'st serialize custom classes with huge code size", () => {
+  class Person {
+    constructor(name) {
+      this.name = name;
+    }
+  }
+  const constructors = [
+    {
+      constructor: Person,
+      code: 0x1000000000,
+      args: (item) => [item.name],
+      build: (name) => new Person(name),
+    },
+  ];
+  const pouya = new Person("Pouya");
+  const sia = new Sia({ constructors });
+  const desia = new DeSia({ constructors });
+  const deserialize = () => desia.deserialize(sia.serialize(pouya));
+  expect(deserialize).toThrow(`Code ${0x1000000000} too big for a constructor`);
+});
+
+test("Throw on unsupported class", () => {
+  const constructors = [];
+  const sia = new Sia({ constructors });
+  const date = new Date();
+  expect(() => sia.serialize(date)).toThrow(
+    `Serialization of item ${date} is not supported`
+  );
+});
+
+test("Throw on unsupported key type", () => {
+  const constructors = [];
+  const sia = new Sia({ constructors });
+  sia.startObject();
+  sia.addNull();
+  sia.addNull();
+  sia.endObject();
+  const buf = sia.buffer.subarray(0, 5);
+  expect(() => desia(buf)).toThrow(`Key of type 0 is invalid.`);
 });
 
 test("Throw on unsupported type", () => {
