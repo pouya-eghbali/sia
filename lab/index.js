@@ -3,9 +3,6 @@ const SIA_TYPES = require("./types");
 const utfz = require("./utfz");
 const int = require("./int");
 
-const { toString } = Object.prototype;
-const typeOf = (item) => toString.call(item);
-
 class Sia {
   constructor({
     onBlocksReady,
@@ -41,11 +38,13 @@ class Sia {
     this.offset += bytes;
   }
   writeUInt8(number) {
-    this.buffer.writeUInt8(number, this.offset);
+    this.buffer[this.offset] = number;
     this.offset += 1;
   }
   writeUInt16(number) {
-    this.buffer.writeUInt16LE(number, this.offset);
+    //this.buffer.writeUInt16LE(number, this.offset);
+    this.buffer[this.offset] = number & 0xff;
+    this.buffer[this.offset + 1] = number >> 8;
     this.offset += 2;
   }
   writeUInt32(number) {
@@ -66,7 +65,6 @@ class Sia {
   }
   addString(string) {
     const { length } = string;
-    const maxBytes = length * 3;
     // See benchmarks/string/both
     if (length < 24) {
       this.writeUInt8(SIA_TYPES.utfz);
@@ -78,7 +76,10 @@ class Sia {
       );
       this.buffer.writeUInt8(byteLength, this.offset);
       this.offset += byteLength + 1;
-    } else if (maxBytes < 0x100) {
+      return;
+    }
+    const maxBytes = length * 3;
+    if (maxBytes < 0x100) {
       //if (length < 128) {
       this.writeUInt8(SIA_TYPES.string8);
       const byteLength = this.writeString(string, this.offset + 1);
@@ -147,7 +148,7 @@ class Sia {
       this.writeUInt16(length);
     }
   }
-  startObject(length) {
+  startObject() {
     //if (length < 0x100) {
     this.writeUInt8(SIA_TYPES.objectStart8);
     //  this.writeUInt8(length);
@@ -170,29 +171,20 @@ class Sia {
     this.writeUInt8(SIA_TYPES.undefined);
   }
   addCustomType(item) {
-    const { args, constructor } = this.itemToSia(item);
-    const argsRef = this.serializeItem(args);
-    const typeRef = this.addString(constructor);
-    let argsRefSize = 0;
-    let typeRefSize = 0;
-    if (typeRef < 0x100) {
-      typeRefSize = 1;
-    } else if (typeRef < 0x10000) {
-      typeRefSize = 2;
-    } else if (typeRef < 0x100000000) {
-      typeRefSize = 3;
+    const { args, code } = this.itemToSia(item);
+    if (code < 0x100) {
+      this.writeUInt8(SIA_TYPES.constructor8);
+      this.writeUInt8(code);
+    } else if (code < 0x10000) {
+      this.writeUInt8(SIA_TYPES.constructor16);
+      this.writeUInt16(code);
+    } else if (code < 0x100000000) {
+      this.writeUInt8(SIA_TYPES.constructor32);
+      this.writeUInt32(code);
+    } else {
+      throw `Code ${code} too big for a constructor`;
     }
-    if (argsRef < 0x100) {
-      argsRefSize = 1;
-    } else if (argsRef < 0x10000) {
-      argsRefSize = 2;
-    } else if (argsRef < 0x100000000) {
-      argsRefSize = 3;
-    }
-    this.writeUInt8(SIA_TYPES.constructor);
-    this.writeUInt8(typeRefSize + argsRefSize * 0x10);
-    this.writeUIntN(typeRefSize, typeRef);
-    this.writeUIntN(argsRefSize, argsRef);
+    this.serializeItem(args);
   }
   serializeItem(item) {
     const type = typeof item;
@@ -246,7 +238,7 @@ class Sia {
     for (const entry of this.constructors) {
       if (entry.constructor === constructor) {
         return {
-          constructor: entry.name,
+          code: entry.code,
           args: entry.args(item),
         };
       }
@@ -266,7 +258,10 @@ class DeSia {
     onEnd,
     mapSize = 256 * 1000,
   } = {}) {
-    this.constructors = constructors;
+    this.constructors = new Array(256);
+    for (const item of constructors) {
+      this.constructors[item.code] = item;
+    }
     this.map = new Array(mapSize);
     this.blocks = 0;
     this.offset = 0;
@@ -377,23 +372,42 @@ class DeSia {
         return this.readInt32();
       }
 
+      case SIA_TYPES.uint40: {
+        return this.readUIntN(5);
+      }
+
+      case SIA_TYPES.uint48: {
+        return this.readUIntN(6);
+      }
+
       case SIA_TYPES.float64: {
         return this.readDouble();
       }
 
-      case SIA_TYPES.constructor: {
-        const size = this.readUInt8();
-        const typeSize = size & 0xf;
-        const argsSize = size >> 4;
-        const typeRef = this.readUIntN(typeSize);
-        const argsRef = this.readUIntN(argsSize);
-        const name = this.map[typeRef];
-        const args = this.map[argsRef];
-        for (const entry of this.constructors) {
-          if (entry.name === name) {
-            const value = entry.build(...args);
-            return value;
-          }
+      case SIA_TYPES.constructor8: {
+        const code = this.readUInt8();
+        const args = this.readBlock();
+        const constructor = this.constructors[code];
+        if (constructor) {
+          return constructor.build(...args);
+        }
+      }
+
+      case SIA_TYPES.constructor16: {
+        const code = this.readUInt16();
+        const args = this.readBlock();
+        const constructor = this.constructors[code];
+        if (constructor) {
+          return constructor.build(...args);
+        }
+      }
+
+      case SIA_TYPES.constructor32: {
+        const code = this.readUInt32();
+        const args = this.readBlock();
+        const constructor = this.constructors[code];
+        if (constructor) {
+          return constructor.build(...args);
         }
       }
 
@@ -451,14 +465,10 @@ class DeSia {
     return intN;
   }
   readUInt8() {
-    const uInt8 = this.buffer.readUInt8(this.offset);
-    this.offset++;
-    return uInt8;
+    return this.buffer[this.offset++];
   }
   readUInt16() {
-    const uInt16 = this.buffer.readUInt16LE(this.offset);
-    this.offset += 2;
-    return uInt16;
+    return this.buffer[this.offset++] + (this.buffer[this.offset++] << 8);
   }
   readUInt32() {
     const uInt32 = this.buffer.readUInt32LE(this.offset);
@@ -499,24 +509,3 @@ module.exports.desia = desia;
 module.exports.Sia = Sia;
 module.exports.DeSia = DeSia;
 module.exports.constructors = builtinConstructors;
-
-/* (async () => {
-  const { diff } = require("deep-diff");
-  const fetch = require("node-fetch");
-  const prettyBytes = require("pretty-bytes");
-  const datasets = [
-    await fetch("https://jsonplaceholder.typicode.com/photos").then((resp) =>
-      resp.json()
-    ),
-    await fetch(
-      "https://github.com/json-iterator/test-data/raw/master/large-file.json"
-    ).then((resp) => resp.json()),
-  ];
-  for (data of datasets) {
-    const serialized = sia(data);
-    console.log(`Size: ${prettyBytes(serialized.length)}`);
-    const deserialized = desia(serialized);
-    console.log(diff(data, deserialized));
-  }
-})();
- */

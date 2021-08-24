@@ -12,8 +12,7 @@ const pack = (str, length, buf, offset) => {
     const low = code & 0xff;
     buf[i + offset] = low;
     if (low === 0) {
-      buf[i + ++offset] = 0;
-      buf[i + ++offset] = 0;
+      buf[i + ++offset] = currHigh;
     }
   }
   return length + offset - start;
@@ -28,9 +27,8 @@ const unpack = (buf, length, offset) => {
   for (let i = offset; i < end; i++) {
     const curr = buf[i];
     if (curr === 0) {
-      if (buf[i + 1] === 0 && buf[i + 2] === 0) {
-        codes.push(currHigh << 8);
-        i += 2;
+      if (buf[i + 1] === currHigh) {
+        codes.push(buf[i++] + (currHigh << 8));
       } else {
         currHigh = buf[++i];
       }
