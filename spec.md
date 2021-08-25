@@ -133,7 +133,7 @@ variable number of objects stored in Sia format:
 +~~~~~~~~~~~~~~~~~+
 ```
 
-`X`, `Y`, `Z` and `A` are the symbols that will be replaced by an actual bit.
+`X`, `Y`, `Z`, `K`, `Q`, `A` and `B` are the symbols that will be replaced by an actual bit.
 
 ## Block diagrams
 
@@ -146,7 +146,7 @@ null:
 +-------+
 ```
 
-`null` block stores `Null` in 1 byte.
+The `null` block stores `Null` in 1 byte.
 
 
 ### Undefined
@@ -158,7 +158,7 @@ undefined:
 +-------+
 ```
 
-`undefined` block stores `Undefined` in 1 byte.
+The `undefined` block stores `Undefined` in 1 byte.
 
 ### Unsigned Integers
 
@@ -272,4 +272,99 @@ Check [Minifloat](https://en.wikipedia.org/wiki/Minifloat) article on Wikipedia 
 
 ### Record
 
+```
+record:
++--------+
+|  0x14  |
++--------+
+```
+
+The `record` block instructs the deserializer to record the next block and increment the reference count.
+
+### Reference
+
+```
+ref8 stores a 8-bit uint8 reference
++--------+--------+
+|  0x15  |ZZZZZZZZ|
++--------+--------+
+
+ref16 stores a 16-bit little-endian uint16 reference
++--------+--------+--------+
+|  0x16  |ZZZZZZZZ|ZZZZZZZZ|
++--------+--------+--------+
+
+ref32 stores a 32-bit little-endian uint32 reference
++--------+--------+--------+--------+--------+
+|  0x17  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
++--------+--------+--------+--------+--------+
+
+ref64 stores a 64-bit little-endian uint64 reference
++--------+--------+--------+--------+--------+--------+--------+--------+--------+
+|  0x18  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
++--------+--------+--------+--------+--------+--------+--------+--------+--------+
+
+ref128 stores a 128-bit little-endian uint128 reference
++--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
+|  0x19  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
++--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
+
+refn stores a N-byte little-endian reference
++--------+--------+========+
+|  0x1a  |AAAAAAAA|  DATA  |
++--------+--------+========+
+
+Where AAAAAAAA is a uint8 value which represents N. 
+```
+
+A reference or pointer to a previously recorded block.
+Note: Object keys are always recorded.
+
+### UTFZ
+
+```
+utfz stores a utfz string with a maximum length of 255
++--------+--------+========+
+|  0x1b  |AAAAAAAA|  DATA  |
++--------+--------+========+
+
+Where AAAAAAAA is a uint8 value which represents the byte length of the string.
+```
+
+UTFZ is a special encoding made to make encoding and decoding UTF-16 strings more performant and efficient on the browsers.
+
+### Strings
+
+```
+string8 stores a utf8 string with a byte length of L
++--------+--------+========+
+|  0x1b  |AAAAAAAA|  DATA  |
++--------+--------+========+
+
+string16 stores a utf8 string with a byte length of L
++--------+--------+--------+========+
+|  0x1c  |BBBBBBBB|BBBBBBBB|  DATA  |
++--------+--------+--------+========+
+
+string32 stores a utf8 string with a byte length of L
++--------+--------+--------+--------+--------+========+
+|  0x1c  |XXXXXXXX|XXXXXXXX|XXXXXXXX|XXXXXXXX|  DATA  |
++--------+--------+--------+--------+--------+========+
+
+string64 stores a utf8 string with a byte length of L
++--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
+|  0x1c  |YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|  DATA  |
++--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
+
+string128 stores a utf8 string with a byte length of L
++--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
+|  0x1c  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|  DATA  |
++--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
+
+stringn stores a utf8 string with a byte length of L
++--------+--------+=========+--------+--------+========+
+|  0x1c  |KKKKKKKK|  BYTES  |XXXXXXXX|XXXXXXXX|  DATA  |
++--------+--------+=========+--------+--------+========+
+
 WIP
+```
