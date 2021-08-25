@@ -4,7 +4,7 @@ const fetch = require("node-fetch");
 const deepEqual = require("deep-equal");
 
 const random = (n) =>
-  [...Array(n)].map((i) => (~~(Math.random() * 36)).toString(36)).join("");
+  [...Array(n)].map(() => (~~(Math.random() * 36)).toString(36)).join("");
 
 test("Serialize dates", () => {
   const date = new Date();
@@ -12,6 +12,25 @@ test("Serialize dates", () => {
   const deserialized = desia(serialized);
   expect(deserialized).toBeInstanceOf(Date);
   expect(deserialized).toEqual(date);
+});
+
+test("Serialize sets", () => {
+  const set = new Set([1, 2, 3]);
+  const serialized = sia(set);
+  const deserialized = desia(serialized);
+  expect(deserialized).toBeInstanceOf(Set);
+  expect(deserialized).toEqual(set);
+});
+
+test("Serialize maps", () => {
+  const map = new Map([
+    [1, 2],
+    [2, 3],
+  ]);
+  const serialized = sia(map);
+  const deserialized = desia(serialized);
+  expect(deserialized).toBeInstanceOf(Map);
+  expect(deserialized).toEqual(map);
 });
 
 test("Serialize integers", () => {
@@ -198,7 +217,7 @@ test("Serialize custom classes with uint32 code size", () => {
   expect(deserialized.name).toEqual("Pouya");
 });
 
-test("Don'st serialize custom classes with huge code size", () => {
+test("Throw on custom classes with huge code size", () => {
   class Person {
     constructor(name) {
       this.name = name;
@@ -217,6 +236,69 @@ test("Don'st serialize custom classes with huge code size", () => {
   const desia = new DeSia({ constructors });
   const deserialize = () => desia.deserialize(sia.serialize(pouya));
   expect(deserialize).toThrow(`Code ${0x1000000000} too big for a constructor`);
+});
+
+test("Throw on unknow constructor, uint8", () => {
+  class Person {
+    constructor(name) {
+      this.name = name;
+    }
+  }
+  const constructors = [
+    {
+      constructor: Person,
+      code: 0x10,
+      args: (item) => [item.name],
+      build: (name) => new Person(name),
+    },
+  ];
+  const pouya = new Person("Pouya");
+  const sia = new Sia({ constructors });
+  const desia = new DeSia({ constructors: [] });
+  const deserialize = () => desia.deserialize(sia.serialize(pouya));
+  expect(deserialize).toThrow(`Constructor ${0x10} is unknown`);
+});
+
+test("Throw on unknow constructor, uint16", () => {
+  class Person {
+    constructor(name) {
+      this.name = name;
+    }
+  }
+  const constructors = [
+    {
+      constructor: Person,
+      code: 0x100,
+      args: (item) => [item.name],
+      build: (name) => new Person(name),
+    },
+  ];
+  const pouya = new Person("Pouya");
+  const sia = new Sia({ constructors });
+  const desia = new DeSia({ constructors: [] });
+  const deserialize = () => desia.deserialize(sia.serialize(pouya));
+  expect(deserialize).toThrow(`Constructor ${0x100} is unknown`);
+});
+
+test("Throw on unknow constructor, uint32", () => {
+  class Person {
+    constructor(name) {
+      this.name = name;
+    }
+  }
+  const constructors = [
+    {
+      constructor: Person,
+      code: 0x10000,
+      args: (item) => [item.name],
+      build: (name) => new Person(name),
+    },
+  ];
+  const pouya = new Person("Pouya");
+  const sia = new Sia({ constructors });
+  const desia = new DeSia({ constructors: [] });
+  const deserialize = () => desia.deserialize(sia.serialize(pouya));
+  expect(deserialize).toThrow(`Constructor ${0x10000} is unknown`);
 });
 
 test("Throw on unsupported class", () => {
@@ -251,22 +333,17 @@ test("Throw on huge ref", () => {
   );
 });
 
-test("Stream", () => {
-  const data = { abc: { xyz: 100, pi: 3.14 }, floats: [1.1, 2.2, 3.3] };
-  const desia = new DeSia({
-    onEnd(deserialized) {
-      expect(deserialized).toEqual(data);
+test("Throw on huge array", () => {
+  const length = 0x100000000;
+  const hugeArray = new Proxy([], {
+    get(target, prop, receiver) {
+      if (prop === "length") return length;
+      return Reflect.get(target, prop, receiver);
     },
   });
-  const sia = new Sia({
-    onBlocksReady(buf) {
-      desia.deserializeBlocks(buf, 2);
-    },
-    size: 4000,
-    hintSize: 1,
-    nBlocks: 2,
-  });
-  sia.serialize(data);
+  expect(() => sia(hugeArray)).toThrow(
+    `Array of size ${length} is too big to serialize`
+  );
 });
 
 test(
