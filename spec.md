@@ -246,23 +246,23 @@ int16 stores a 16-bit minifloat
 +-------+--------+--------+
 
 float32 stores a single-precision 32-bit IEEE 754 float
-+-------+--------+--------+--------+--------+
-|  0xa  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+--------+--------+
++--------+--------+--------+--------+--------+
+|  0x10  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
++--------+--------+--------+--------+--------+
 
 float64 stores a double-precision 64-bit IEEE 754 float
 +--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x10  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
+|  0x11  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
 +--------+--------+--------+--------+--------+--------+--------+--------+--------+
 
 float128 stores a quadruple-precision 128-bit IEEE 754 float
 +--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x11  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
+|  0x12  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
 +--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
 
 floatn stores a N-byte floating point number
 +--------+--------+========+
-|  0x12  |AAAAAAAA|  DATA  |
+|  0x13  |AAAAAAAA|  DATA  |
 +--------+--------+========+
 
 Where AAAAAAAA is a uint8 value which represents N. 
