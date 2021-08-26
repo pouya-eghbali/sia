@@ -117,23 +117,17 @@ The table below shows the identifier byte for each of the data types that Sia su
 ## Notation in diagrams
 
 ```
-one byte:
+SIZE number of bytes:
 +--------+
 |        |
 +--------+
-
-a variable number of bytes:
-+========+
-|        |
-+========+
+[  SIZE  ]
 
 variable number of objects stored in Sia format:
 +~~~~~~~~~~~~~~~~~+
 |                 |
 +~~~~~~~~~~~~~~~~~+
 ```
-
-`X`, `Y`, `Z`, `K`, `Q`, `A` and `B` are the symbols that will be replaced by an actual bit.
 
 ## Block diagrams
 
@@ -144,6 +138,7 @@ null:
 +-------+
 |  0x0  |
 +-------+
+[   1   ]
 ```
 
 The `null` block stores `Null` in 1 byte.
@@ -156,6 +151,7 @@ undefined:
 +-------+
 |  0x1  |
 +-------+
+[   1   ]
 ```
 
 The `undefined` block stores `Undefined` in 1 byte.
@@ -165,35 +161,40 @@ The `undefined` block stores `Undefined` in 1 byte.
 ```
 uint8 stores a 8-bit unsigned integer
 +-------+--------+
-|  0x2  |ZZZZZZZZ|
+|  0x2  | Number |
 +-------+--------+
+[   1   ][   1   ]
 
 uint16 stores a 16-bit little-endian unsigned integer
-+-------+--------+--------+
-|  0x3  |ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+
++-------+--------+
+|  0x3  | Number |
++-------+--------+
+[   1   ][   2   ]
 
 uint32 stores a 32-bit little-endian unsigned integer
-+-------+--------+--------+--------+--------+
-|  0x4  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+--------+--------+
++-------+--------+
+|  0x4  | Number |
++-------+--------+
+[   1   ][   4   ]
 
 uint64 stores a 64-bit little-endian unsigned integer
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x5  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+
++-------+--------+
+|  0x5  | Number |
++-------+--------+
+[   1   ][   8   ]
 
 uint128 stores a 128-bit little-endian unsigned integer
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x6  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
++-------+---------+
+|  0x6  |  Number |
++-------+---------+
+[   1   ][   16   ]
 
 uintn stores a N-byte little-endian unsigned integer
-+-------+--------+========+
-|  0x7  |AAAAAAAA|  DATA  |
-+-------+--------+========+
++-------+--------+--------+
+|  0x6  |    N   | Number |
++-------+--------+--------+
+[   1   ][   1   ][   N   ]
 
-Where AAAAAAAA is a uint8 value which represents N. 
 ```
 
 ### Signed Integers
@@ -201,35 +202,39 @@ Where AAAAAAAA is a uint8 value which represents N.
 ```
 int8 stores a 8-bit signed integer
 +-------+--------+
-|  0x8  |ZZZZZZZZ|
+|  0x7  | Number |
 +-------+--------+
+[   1   ][   1   ]
 
 int16 stores a 16-bit little-endian signed integer
-+-------+--------+--------+
-|  0x9  |ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+
++-------+--------+
+|  0x8  | Number |
++-------+--------+
+[   1   ][   2   ]
 
 int32 stores a 32-bit little-endian signed integer
-+-------+--------+--------+--------+--------+
-|  0xa  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+--------+--------+
++-------+--------+
+|  0x9  | Number |
++-------+--------+
+[   1   ][   4   ]
 
 int64 stores a 64-bit little-endian signed integer
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0xb  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+
++-------+--------+
+|  0xa  | Number |
++-------+--------+
+[   1   ][   8   ]
 
 int128 stores a 128-bit little-endian signed integer
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0xc  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
++-------+----------+
+|  0xb  |  Number  |
++-------+----------+
+[   1   ][   16    ]
 
 intn stores a N-byte little-endian signed integer
-+-------+--------+========+
-|  0xd  |AAAAAAAA|  DATA  |
-+-------+--------+========+
-
-Where AAAAAAAA is a uint8 value which represents N. 
++-------+--------+--------+
+|  0xc  |    N   | Number |
++-------+--------+--------+
+[   1   ][   1   ][   N   ]
 ```
 
 ### Floats
@@ -237,35 +242,40 @@ Where AAAAAAAA is a uint8 value which represents N.
 ```
 float8 stores a 8-bit minifloat
 +-------+--------+
-|  0xe  |ZZZZZZZZ|
+|  0xe  | Number |
 +-------+--------+
+[   1   ][   1   ]
 
 int16 stores a 16-bit minifloat
-+-------+--------+--------+
-|  0xf  |ZZZZZZZZ|ZZZZZZZZ|
-+-------+--------+--------+
++-------+--------+
+|  0xf  | Number |
++-------+--------+
+[   1   ][   2   ]
 
 float32 stores a single-precision 32-bit IEEE 754 float
-+--------+--------+--------+--------+--------+
-|  0x10  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+--------+--------+--------+--------+--------+
++--------+--------+
+|  0x10  | Number |
++--------+--------+
+[   1    ][   4   ]
 
 float64 stores a double-precision 64-bit IEEE 754 float
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x11  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+
++--------+--------+
+|  0x11  | Number |
++--------+--------+
+[   1    ][   8   ]
 
 float128 stores a quadruple-precision 128-bit IEEE 754 float
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x12  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
++--------+----------+
+|  0x12  |  Number  |
++--------+----------+
+[   1    ][   16    ]
 
 floatn stores a N-byte floating point number
-+--------+--------+========+
-|  0x13  |AAAAAAAA|  DATA  |
-+--------+--------+========+
++--------+--------+--------+
+|  0x13  |    N   | Number |
++--------+--------+--------+
+[   1    ][   1   ][   N   ]
 
-Where AAAAAAAA is a uint8 value which represents N. 
 ```
 
 Check [Minifloat](https://en.wikipedia.org/wiki/Minifloat) article on Wikipedia for more information.
@@ -277,6 +287,7 @@ record:
 +--------+
 |  0x14  |
 +--------+
+[   1    ]
 ```
 
 The `record` block instructs the deserializer to record the next block and increment the reference count.
@@ -286,49 +297,52 @@ The `record` block instructs the deserializer to record the next block and incre
 ```
 ref8 stores a 8-bit uint8 reference
 +--------+--------+
-|  0x15  |ZZZZZZZZ|
+|  0x15  | Number |
 +--------+--------+
+[   1    ][   1   ]
 
 ref16 stores a 16-bit little-endian uint16 reference
-+--------+--------+--------+
-|  0x16  |ZZZZZZZZ|ZZZZZZZZ|
-+--------+--------+--------+
++--------+--------+
+|  0x16  | Number |
++--------+--------+
+[   1    ][   2   ]
 
 ref32 stores a 32-bit little-endian uint32 reference
-+--------+--------+--------+--------+--------+
-|  0x17  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+--------+--------+--------+--------+--------+
++--------+--------+
+|  0x17  | Number |
++--------+--------+
+[   1    ][   4   ]
 
 ref64 stores a 64-bit little-endian uint64 reference
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x18  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+
++--------+--------+
+|  0x18  | Number |
++--------+--------+
+[   1    ][   8   ]
 
 ref128 stores a 128-bit little-endian uint128 reference
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
-|  0x19  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
++--------+----------+
+|  0x19  |  Number  |
++--------+----------+
+[   1    ][   16    ]
 
 refn stores a N-byte little-endian reference
-+--------+--------+========+
-|  0x1a  |AAAAAAAA|  DATA  |
-+--------+--------+========+
-
-Where AAAAAAAA is a uint8 value which represents N. 
++--------+--------+--------+
+|  0x1a  |    N   | Number |
++--------+--------+--------+
+[   1    ][   1   ][   N   ]
 ```
 
-A reference or pointer to a previously recorded block.
+A reference or pointer to a previously recorded block and it holds the record counter's value.
 Note: Object keys are always recorded.
 
 ### UTFZ
 
 ```
-utfz stores a utfz string with a maximum length of 255
-+--------+--------+========+
-|  0x1b  |AAAAAAAA|  DATA  |
-+--------+--------+========+
-
-Where AAAAAAAA is a uint8 value which represents the byte length of the string.
+utfz stores a utfz string with a maximum byte length of 255
++--------+--------+--------+
+|  0x1b  |    L   | String |
++--------+--------+--------+
+[   1    ][   1   ][   L   ]
 ```
 
 UTFZ is a special encoding made to make encoding and decoding UTF-16 strings more performant and efficient on the browsers.
@@ -337,34 +351,39 @@ UTFZ is a special encoding made to make encoding and decoding UTF-16 strings mor
 
 ```
 string8 stores a utf8 string with a byte length of L
-+--------+--------+========+
-|  0x1b  |AAAAAAAA|  DATA  |
-+--------+--------+========+
++--------+--------+--------+
+|  0x1c  |    L   | String |
++--------+--------+--------+
+[   1    ][   1   ][   L   ]
 
 string16 stores a utf8 string with a byte length of L
-+--------+--------+--------+========+
-|  0x1c  |BBBBBBBB|BBBBBBBB|  DATA  |
-+--------+--------+--------+========+
++--------+--------+--------+
+|  0x1d  |    L   | String |
++--------+--------+--------+
+[   1    ][   2   ][   L   ]
 
 string32 stores a utf8 string with a byte length of L
-+--------+--------+--------+--------+--------+========+
-|  0x1c  |XXXXXXXX|XXXXXXXX|XXXXXXXX|XXXXXXXX|  DATA  |
-+--------+--------+--------+--------+--------+========+
++--------+--------+--------+
+|  0x1e  |    L   | String |
++--------+--------+--------+
+[   1    ][   4   ][   L   ]
 
 string64 stores a utf8 string with a byte length of L
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
-|  0x1c  |YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|YYYYYYYY|  DATA  |
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
++--------+--------+--------+
+|  0x1f  |    L   | String |
++--------+--------+--------+
+[   1    ][   8   ][   L   ]
 
 string128 stores a utf8 string with a byte length of L
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
-|  0x1c  |ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|ZZZZZZZZ|  DATA  |
-+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+========+
++--------+--------+--------+
+|  0x20  |    L   | String |
++--------+--------+--------+
+[   1    ][  16   ][   L   ]
 
-stringn stores a utf8 string with a byte length of L
-+--------+--------+=========+--------+--------+========+
-|  0x1c  |KKKKKKKK|  BYTES  |XXXXXXXX|XXXXXXXX|  DATA  |
-+--------+--------+=========+--------+--------+========+
-
-WIP
+stringn stores a utf8 string which has a N-byte byte length of L
++--------+--------+--------+--------+
+|  0x20  |    N   |    L   | String |
++--------+--------+--------+--------+
+[   1    ][   1   ][   N   ][   L   ]
 ```
+
