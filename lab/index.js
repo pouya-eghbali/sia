@@ -1,23 +1,12 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
 const utfz = require("./utfz");
-const int = require("./int");
 
 class Sia {
-  constructor({
-    onBlocksReady,
-    nBlocks = 1,
-    size = 33554432,
-    constructors = builtinConstructors,
-  } = {}) {
+  constructor({ size = 33554432, constructors = builtinConstructors } = {}) {
     this.map = new Map();
     this.buffer = Buffer.alloc(size);
     this.offset = 0;
-    this.blocks = 0;
-    this.dataBlocks = 0;
-    this.onBlocksReady = onBlocksReady;
-    this.nBlocks = nBlocks;
-    this.bufferedBlocks = 0;
     this.constructors = constructors;
     this.strings = 0;
   }
@@ -29,38 +18,34 @@ class Sia {
   writeString(str, offset) {
     return this.buffer.write(str, offset);
   }
-  writeUIntN(bytes, number) {
-    this.buffer.writeUIntLE(number, this.offset, bytes);
-    this.offset += bytes;
-  }
-  writeIntN(bytes, number) {
-    this.buffer.writeIntLE(number, this.offset, bytes);
-    this.offset += bytes;
-  }
   writeUInt8(number) {
     this.buffer[this.offset] = number;
     this.offset += 1;
   }
   writeUInt16(number) {
-    //this.buffer.writeUInt16LE(number, this.offset);
-    this.buffer[this.offset] = number & 0xff;
-    this.buffer[this.offset + 1] = number >> 8;
+    //this.buffer.writeUInt16BE(number, this.offset);
+    this.buffer[this.offset] = number >> 8;
+    this.buffer[this.offset + 1] = number & 0xff;
     this.offset += 2;
   }
   writeUInt32(number) {
-    this.buffer.writeUInt32LE(number, this.offset);
+    this.buffer.writeUInt32BE(number, this.offset);
     this.offset += 4;
   }
+  writeInt8(number) {
+    this.buffer.writeInt8(number, this.offset);
+    this.offset += 1;
+  }
   writeInt16(number) {
-    this.buffer.writeInt16LE(number, this.offset);
+    this.buffer.writeInt16BE(number, this.offset);
     this.offset += 2;
   }
   writeInt32(number) {
-    this.buffer.writeInt32LE(number, this.offset);
+    this.buffer.writeInt32BE(number, this.offset);
     this.offset += 4;
   }
   writeDouble(number) {
-    this.buffer.writeDoubleLE(number, this.offset);
+    this.buffer.writeDoubleBE(number, this.offset);
     this.offset += 8;
   }
   addString(string) {
@@ -94,12 +79,12 @@ class Sia {
     } else if (maxBytes < 0x10000) {
       this.writeUInt8(SIA_TYPES.string16);
       const byteLength = this.writeString(string, this.offset + 2);
-      this.buffer.writeUInt16LE(byteLength, this.offset);
+      this.buffer.writeUInt16BE(byteLength, this.offset);
       this.offset += byteLength + 2;
     } else {
       this.writeUInt8(SIA_TYPES.string32);
       const byteLength = this.writeString(string, this.offset + 4);
-      this.buffer.writeUInt32LE(byteLength, this.offset);
+      this.buffer.writeUInt32BE(byteLength, this.offset);
       this.offset += byteLength + 4;
     }
   }
@@ -124,15 +109,31 @@ class Sia {
   }
   addInteger(number) {
     if (number < 0) {
-      const byes = int.byteSizeOfNegative(number);
-      const type = int.negativeNumberTypes[byes];
-      this.writeUInt8(type);
-      this.writeIntN(byes, number);
+      if (number >= -0x80) {
+        this.writeUInt8(SIA_TYPES.int8);
+        this.writeInt8(number);
+      } else if (number >= -0x8000) {
+        this.writeUInt8(SIA_TYPES.int16);
+        this.writeInt16(number);
+      } else if (number >= -0x80000000) {
+        this.writeUInt8(SIA_TYPES.int32);
+        this.writeInt32(number);
+      } else {
+        this.addFloat(number);
+      }
     } else {
-      const byes = int.byteSizeOfPositive(number);
-      const type = int.positiveNumberTypes[byes];
-      this.writeUInt8(type);
-      this.writeUIntN(byes, number);
+      if (number < 0x100) {
+        this.writeUInt8(SIA_TYPES.uint8);
+        this.writeUInt8(number);
+      } else if (number < 0x10000) {
+        this.writeUInt8(SIA_TYPES.uint16);
+        this.writeUInt16(number);
+      } else if (number < 0x100000000) {
+        this.writeUInt8(SIA_TYPES.uint32);
+        this.writeUInt32(number);
+      } else {
+        this.addFloat(number);
+      }
     }
   }
   addFloat(number) {
@@ -141,24 +142,35 @@ class Sia {
   }
   startArray(length) {
     if (length < 0x100) {
-      this.writeUInt8(SIA_TYPES.arrayStart8);
+      this.writeUInt8(SIA_TYPES.array8);
       this.writeUInt8(length);
     } else if (length < 0x10000) {
-      this.writeUInt8(SIA_TYPES.arrayStart16);
+      this.writeUInt8(SIA_TYPES.array16);
       this.writeUInt16(length);
+    } else if (length < 0x100000000) {
+      this.writeUInt8(SIA_TYPES.array32);
+      this.writeUInt32(length);
+    } else {
+      throw `Array of size ${length} is too big to serialize`;
     }
   }
   startObject() {
-    //if (length < 0x100) {
-    this.writeUInt8(SIA_TYPES.objectStart8);
-    //  this.writeUInt8(length);
-    //} else if (length < 0x10000) {
-    //  this.writeUInt8(SIA_TYPES.objectStart16);
-    //  this.writeUInt16(length);
-    //}
+    this.writeUInt8(SIA_TYPES.objectStart);
   }
   endObject() {
     this.writeUInt8(SIA_TYPES.objectEnd);
+  }
+  startMap() {
+    this.writeUInt8(SIA_TYPES.mapStart);
+  }
+  endMap() {
+    this.writeUInt8(SIA_TYPES.mapEnd);
+  }
+  startSet() {
+    this.writeUInt8(SIA_TYPES.setStart);
+  }
+  endSet() {
+    this.writeUInt8(SIA_TYPES.setEnd);
   }
   addBoolean(bool) {
     const type = bool ? SIA_TYPES.true : SIA_TYPES.false;
@@ -170,8 +182,8 @@ class Sia {
   addUndefined() {
     this.writeUInt8(SIA_TYPES.undefined);
   }
-  addCustomType(item) {
-    const { args, code } = this.itemToSia(item);
+  addCustomType(item, constructor) {
+    const { args, code } = this.itemToSia(item, constructor);
     if (code < 0x100) {
       this.writeUInt8(SIA_TYPES.constructor8);
       this.writeUInt8(code);
@@ -204,8 +216,9 @@ class Sia {
       case "object": {
         if (item === null) {
           return this.addNull(item);
-        } else if (item.constructor === Object) {
-          //const keys = Object.keys(item);
+        }
+        const { constructor } = item;
+        if (constructor === Object) {
           this.startObject();
           for (const key in item) {
             const ref = this.map.get(key);
@@ -220,21 +233,30 @@ class Sia {
           return this.endObject();
         } else if (Array.isArray(item)) {
           this.startArray(item.length);
-          for (const m of item) this.serializeItem(m);
-          //return this.endArray();
+          for (const member of item) {
+            this.serializeItem(member);
+          }
           return;
+        } else if (constructor === Set) {
+          this.startSet();
+          for (const member of item) {
+            this.serializeItem(member);
+          }
+          this.endSet();
+        } else if (constructor === Map) {
+          this.startMap();
+          for (const [key, value] of item) {
+            this.serializeItem(key);
+            this.serializeItem(value);
+          }
+          this.endMap();
         } else {
-          return this.addCustomType(item);
+          return this.addCustomType(item, constructor);
         }
       }
-
-      default:
-        break;
     }
-    return this.addCustomType(item);
   }
-  itemToSia(item) {
-    const { constructor } = item;
+  itemToSia(item, constructor) {
     for (const entry of this.constructors) {
       if (entry.constructor === constructor) {
         return {
@@ -243,6 +265,7 @@ class Sia {
         };
       }
     }
+    throw `Serialization of item ${item} is not supported`;
   }
   serialize(data) {
     this.data = data;
@@ -255,7 +278,6 @@ class Sia {
 class DeSia {
   constructor({
     constructors = builtinConstructors,
-    onEnd,
     mapSize = 256 * 1000,
   } = {}) {
     this.constructors = new Array(256);
@@ -263,14 +285,10 @@ class DeSia {
       this.constructors[item.code] = item;
     }
     this.map = new Array(mapSize);
-    this.blocks = 0;
     this.offset = 0;
-    this.onEnd = onEnd;
-    this.refMap = new Array(mapSize);
     this.strings = 0;
   }
   reset() {
-    this.blocks = 0;
     this.offset = 0;
     this.strings = 0;
   }
@@ -278,45 +296,45 @@ class DeSia {
     switch (blockType) {
       case SIA_TYPES.ref8: {
         const ref = this.readUInt8();
-        return this.refMap[ref];
+        return this.map[ref];
       }
 
       case SIA_TYPES.ref16: {
         const ref = this.readUInt16();
-        return this.refMap[ref];
+        return this.map[ref];
       }
 
       case SIA_TYPES.ref32: {
         const ref = this.readUInt32();
-        return this.refMap[ref];
+        return this.map[ref];
       }
 
       case SIA_TYPES.utfz: {
         const length = this.readUInt8();
         const str = utfz.unpack(this.buffer, length, this.offset);
         this.offset += length;
-        this.refMap[this.strings++] = str;
+        this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string8: {
         const length = this.readUInt8();
         const str = this.readString(length);
-        this.refMap[this.strings++] = str;
+        this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string16: {
         const length = this.readUInt16();
         const str = this.readString(length);
-        this.refMap[this.strings++] = str;
+        this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string32: {
         const length = this.readUInt32();
         const str = this.readString(length);
-        this.refMap[this.strings++] = str;
+        this.map[this.strings++] = str;
         return str;
       }
 
@@ -331,29 +349,41 @@ class DeSia {
         const length = this.readUInt8();
         const str = utfz.unpack(this.buffer, length, this.offset);
         this.offset += length;
-        //this.refMap[this.strings++] = str;
+        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string8: {
         const length = this.readUInt8();
         const str = this.readString(length);
-        //this.refMap[this.strings++] = str;
+        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string16: {
         const length = this.readUInt16();
         const str = this.readString(length);
-        //this.refMap[this.strings++] = str;
+        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string32: {
         const length = this.readUInt32();
         const str = this.readString(length);
-        //this.refMap[this.strings++] = str;
+        //this.map[this.strings++] = str;
         return str;
+      }
+
+      case SIA_TYPES.int8: {
+        return this.readInt8();
+      }
+
+      case SIA_TYPES.int16: {
+        return this.readInt16();
+      }
+
+      case SIA_TYPES.int32: {
+        return this.readInt32();
       }
 
       case SIA_TYPES.uint8: {
@@ -364,20 +394,8 @@ class DeSia {
         return this.readUInt16();
       }
 
-      case SIA_TYPES.uint24: {
-        return this.readUIntN(3);
-      }
-
       case SIA_TYPES.uint32: {
-        return this.readInt32();
-      }
-
-      case SIA_TYPES.uint40: {
-        return this.readUIntN(5);
-      }
-
-      case SIA_TYPES.uint48: {
-        return this.readUIntN(6);
+        return this.readUInt32();
       }
 
       case SIA_TYPES.float64: {
@@ -390,6 +408,8 @@ class DeSia {
         const constructor = this.constructors[code];
         if (constructor) {
           return constructor.build(...args);
+        } else {
+          throw `Constructor ${code} is unknown`;
         }
       }
 
@@ -399,6 +419,8 @@ class DeSia {
         const constructor = this.constructors[code];
         if (constructor) {
           return constructor.build(...args);
+        } else {
+          throw `Constructor ${code} is unknown`;
         }
       }
 
@@ -408,6 +430,8 @@ class DeSia {
         const constructor = this.constructors[code];
         if (constructor) {
           return constructor.build(...args);
+        } else {
+          throw `Constructor ${code} is unknown`;
         }
       }
 
@@ -423,20 +447,37 @@ class DeSia {
       case SIA_TYPES.undefined:
         return undefined;
 
-      case SIA_TYPES.objectStart8: {
+      case SIA_TYPES.objectStart: {
         const obj = {};
-        //let length = this.readUInt8();
         let curr = this.buffer[this.offset++];
-        const { objectEnd } = SIA_TYPES;
-        while (curr !== objectEnd) {
+        while (curr !== SIA_TYPES.objectEnd) {
           obj[this.readKey(curr)] = this.readBlock();
           curr = this.buffer[this.offset++];
         }
         return obj;
-        //break;
       }
 
-      case SIA_TYPES.arrayStart8: {
+      case SIA_TYPES.mapStart: {
+        const map = new Map();
+        let curr = this.buffer[this.offset];
+        while (curr !== SIA_TYPES.mapEnd) {
+          map.set(this.readBlock(), this.readBlock());
+          curr = this.buffer[this.offset];
+        }
+        return map;
+      }
+
+      case SIA_TYPES.setStart: {
+        const set = new Set();
+        let curr = this.buffer[this.offset];
+        while (curr !== SIA_TYPES.setEnd) {
+          set.add(this.readBlock());
+          curr = this.buffer[this.offset];
+        }
+        return set;
+      }
+
+      case SIA_TYPES.array8: {
         const length = this.readUInt8();
         const arr = new Array(length);
         for (let i = 0; i < length; i++) {
@@ -445,8 +486,17 @@ class DeSia {
         return arr;
       }
 
-      case SIA_TYPES.arrayStart16: {
+      case SIA_TYPES.array16: {
         const length = this.readUInt16();
+        const arr = new Array(length);
+        for (let i = 0; i < length; i++) {
+          arr[i] = this.readBlock();
+        }
+        return arr;
+      }
+
+      case SIA_TYPES.array32: {
+        const length = this.readUInt32();
         const arr = new Array(length);
         for (let i = 0; i < length; i++) {
           arr[i] = this.readBlock();
@@ -459,29 +509,32 @@ class DeSia {
         throw error;
     }
   }
-  readUIntN(n) {
-    const intN = this.buffer.readUIntLE(this.offset, n);
-    this.offset += n;
-    return intN;
-  }
   readUInt8() {
     return this.buffer[this.offset++];
   }
   readUInt16() {
-    return this.buffer[this.offset++] + (this.buffer[this.offset++] << 8);
+    return (this.buffer[this.offset++] << 8) + this.buffer[this.offset++];
   }
   readUInt32() {
-    const uInt32 = this.buffer.readUInt32LE(this.offset);
+    const uInt32 = this.buffer.readUInt32BE(this.offset);
     this.offset += 4;
     return uInt32;
   }
+  readInt8() {
+    return this.buffer.readInt8(this.offset++);
+  }
+  readInt16() {
+    const int16 = this.buffer.readInt16BE(this.offset);
+    this.offset += 2;
+    return int16;
+  }
   readInt32() {
-    const int32 = this.buffer.readInt32LE(this.offset);
+    const int32 = this.buffer.readInt32BE(this.offset);
     this.offset += 4;
     return int32;
   }
   readDouble() {
-    const uInt64 = this.buffer.readDoubleLE(this.offset);
+    const uInt64 = this.buffer.readDoubleBE(this.offset);
     this.offset += 8;
     return uInt64;
   }

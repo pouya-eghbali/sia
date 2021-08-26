@@ -53,66 +53,66 @@ Note: the `record` and `reference` types are used for making a pointer to a valu
 
 The table below shows the identifier byte for each of the data types that Sia supports:
 
-| Type name        | Decimal  | Binary    | Hex  |
-|------------------|----------|-----------|------|
-| null             | 0        |0b00000000 | 0x0  |
-| undefined        | 1        |0b00000001 | 0x1  |
-| uint8            | 2        |0b00000010 | 0x2  |
-| uint16           | 3        |0b00000011 | 0x3  |
-| uint32           | 4        |0b00000100 | 0x4  |
-| uint64           | 5        |0b00000101 | 0x5  |
-| uint128          | 6        |0b00000110 | 0x6  |
-| uintn            | 7        |0b00000111 | 0x7  |
-| int8             | 8        |0b00001000 | 0x8  |
-| int16            | 9        |0b00001001 | 0x9  |
-| int32            | 10       |0b00001010 | 0xa  |
-| int64            | 11       |0b00001011 | 0xb  |
-| int128           | 12       |0b00001100 | 0xc  |
-| intn             | 13       |0b00001101 | 0xd  |
-| float8           | 14       |0b00001110 | 0xe  |
-| float16          | 15       |0b00001111 | 0xf  |
-| float32          | 16       |0b00010000 | 0x10 |
-| float64          | 17       |0b00010001 | 0x11 |
-| float128         | 18       |0b00010010 | 0x12 |
-| floatn           | 19       |0b00010011 | 0x13 |
-| record           | 20       |0b00010100 | 0x14 |
-| ref8             | 21       |0b00010101 | 0x15 |
-| ref16            | 22       |0b00010110 | 0x16 |
-| ref32            | 23       |0b00010111 | 0x17 |
-| ref64            | 24       |0b00011000 | 0x18 |
-| ref128           | 25       |0b00011001 | 0x19 |
-| refn             | 26       |0b00011010 | 0x1a |
-| utfz             | 27       |0b00011011 | 0x1b |
-| string8          | 28       |0b00011100 | 0x1c |
-| string16         | 29       |0b00011101 | 0x1d |
-| string32         | 30       |0b00011110 | 0x1e |
-| string64         | 31       |0b00011111 | 0x1f |
-| string128        | 32       |0b00100000 | 0x20 |
-| stringn          | 33       |0b00100001 | 0x21 |
-| bin8             | 34       |0b00100010 | 0x22 |
-| bin16            | 35       |0b00100011 | 0x23 |
-| bin32            | 36       |0b00100100 | 0x24 |
-| bin64            | 37       |0b00100101 | 0x25 |
-| bin128           | 38       |0b00100110 | 0x26 |
-| binN             | 39       |0b00100111 | 0x27 |
-| true             | 40       |0b00101000 | 0x28 |
-| false            | 41       |0b00101001 | 0x29 |
-| date             | 42       |0b00101010 | 0x2a |
-| date64           | 43       |0b00101011 | 0x2b |
-| constructor8     | 44       |0b00101100 | 0x2c |
-| constructor16    | 45       |0b00101101 | 0x2d |
-| constructor32    | 46       |0b00101110 | 0x2e |
-| array8           | 47       |0b00101111 | 0x2f |
-| array16          | 48       |0b00110000 | 0x30 |
-| array32          | 49       |0b00110001 | 0x31 |
-| array64          | 50       |0b00110010 | 0x32 |
-| array128         | 51       |0b00110011 | 0x33 |
-| objectStart      | 52       |0b00110100 | 0x34 |
-| objectEnd        | 53       |0b00110101 | 0x35 |
-| setStart         | 54       |0b00110110 | 0x36 |
-| setEnd           | 55       |0b00110111 | 0x37 |
-| mapStart         | 56       |0b00111000 | 0x38 |
-| mapEnd           | 57       |0b00111001 | 0x39 |
+| Type name     | Decimal | Binary     | Hex  |
+| ------------- | ------- | ---------- | ---- |
+| null          | 0       | 0b00000000 | 0x0  |
+| undefined     | 1       | 0b00000001 | 0x1  |
+| uint8         | 2       | 0b00000010 | 0x2  |
+| uint16        | 3       | 0b00000011 | 0x3  |
+| uint32        | 4       | 0b00000100 | 0x4  |
+| uint64        | 5       | 0b00000101 | 0x5  |
+| uint128       | 6       | 0b00000110 | 0x6  |
+| uintn         | 7       | 0b00000111 | 0x7  |
+| int8          | 8       | 0b00001000 | 0x8  |
+| int16         | 9       | 0b00001001 | 0x9  |
+| int32         | 10      | 0b00001010 | 0xa  |
+| int64         | 11      | 0b00001011 | 0xb  |
+| int128        | 12      | 0b00001100 | 0xc  |
+| intn          | 13      | 0b00001101 | 0xd  |
+| float8        | 14      | 0b00001110 | 0xe  |
+| float16       | 15      | 0b00001111 | 0xf  |
+| float32       | 16      | 0b00010000 | 0x10 |
+| float64       | 17      | 0b00010001 | 0x11 |
+| float128      | 18      | 0b00010010 | 0x12 |
+| floatn        | 19      | 0b00010011 | 0x13 |
+| record        | 20      | 0b00010100 | 0x14 |
+| ref8          | 21      | 0b00010101 | 0x15 |
+| ref16         | 22      | 0b00010110 | 0x16 |
+| ref32         | 23      | 0b00010111 | 0x17 |
+| ref64         | 24      | 0b00011000 | 0x18 |
+| ref128        | 25      | 0b00011001 | 0x19 |
+| refn          | 26      | 0b00011010 | 0x1a |
+| utfz          | 27      | 0b00011011 | 0x1b |
+| string8       | 28      | 0b00011100 | 0x1c |
+| string16      | 29      | 0b00011101 | 0x1d |
+| string32      | 30      | 0b00011110 | 0x1e |
+| string64      | 31      | 0b00011111 | 0x1f |
+| string128     | 32      | 0b00100000 | 0x20 |
+| stringn       | 33      | 0b00100001 | 0x21 |
+| bin8          | 34      | 0b00100010 | 0x22 |
+| bin16         | 35      | 0b00100011 | 0x23 |
+| bin32         | 36      | 0b00100100 | 0x24 |
+| bin64         | 37      | 0b00100101 | 0x25 |
+| bin128        | 38      | 0b00100110 | 0x26 |
+| binN          | 39      | 0b00100111 | 0x27 |
+| true          | 40      | 0b00101000 | 0x28 |
+| false         | 41      | 0b00101001 | 0x29 |
+| date          | 42      | 0b00101010 | 0x2a |
+| date64        | 43      | 0b00101011 | 0x2b |
+| constructor8  | 44      | 0b00101100 | 0x2c |
+| constructor16 | 45      | 0b00101101 | 0x2d |
+| constructor32 | 46      | 0b00101110 | 0x2e |
+| array8        | 47      | 0b00101111 | 0x2f |
+| array16       | 48      | 0b00110000 | 0x30 |
+| array32       | 49      | 0b00110001 | 0x31 |
+| array64       | 50      | 0b00110010 | 0x32 |
+| array128      | 51      | 0b00110011 | 0x33 |
+| objectStart   | 52      | 0b00110100 | 0x34 |
+| objectEnd     | 53      | 0b00110101 | 0x35 |
+| setStart      | 54      | 0b00110110 | 0x36 |
+| setEnd        | 55      | 0b00110111 | 0x37 |
+| mapStart      | 56      | 0b00111000 | 0x38 |
+| mapEnd        | 57      | 0b00111001 | 0x39 |
 
 ## Notation in diagrams
 
@@ -142,7 +142,6 @@ null:
 ```
 
 The `null` block stores `Null` in 1 byte.
-
 
 ### Undefined
 

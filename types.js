@@ -19,6 +19,7 @@ const typeNames = [
   "float64",
   "float128",
   "floatn",
+  "record",
   "ref8",
   "ref16",
   "ref32",
@@ -32,7 +33,12 @@ const typeNames = [
   "string64",
   "string128",
   "stringn",
-  "binary",
+  "bin8",
+  "bin16",
+  "bin32",
+  "bin64",
+  "bin128",
+  "binN",
   "true",
   "false",
   "date",
@@ -40,11 +46,6 @@ const typeNames = [
   "constructor8",
   "constructor16",
   "constructor32",
-  "array8",
-  "array16",
-  "array32",
-  "array64",
-  "array128",
   "array8",
   "array16",
   "array32",
@@ -61,3 +62,11 @@ const typeNames = [
 const types = Object.fromEntries(typeNames.map((name, index) => [name, index]));
 
 module.exports = types;
+
+for (const [name, index] of Object.entries(types)) {
+  console.log(
+    `| ${name.padEnd(16, " ")} | ${index.toString().padEnd(8, " ")} |0b${index
+      .toString(2)
+      .padStart(8, "0")} | 0x${index.toString(16).padEnd(2, " ")} |`
+  );
+}
