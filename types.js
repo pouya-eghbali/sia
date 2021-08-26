@@ -62,11 +62,3 @@ const typeNames = [
 const types = Object.fromEntries(typeNames.map((name, index) => [name, index]));
 
 module.exports = types;
-
-for (const [name, index] of Object.entries(types)) {
-  console.log(
-    `| ${name.padEnd(16, " ")} | ${index.toString().padEnd(8, " ")} |0b${index
-      .toString(2)
-      .padStart(8, "0")} | 0x${index.toString(16).padEnd(2, " ")} |`
-  );
-}
