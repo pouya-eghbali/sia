@@ -102,17 +102,17 @@ The table below shows the identifier byte for each of the data types that Sia su
 | constructor8     | 44       |0b00101100 | 0x2c |
 | constructor16    | 45       |0b00101101 | 0x2d |
 | constructor32    | 46       |0b00101110 | 0x2e |
-| array8           | 52       |0b00110100 | 0x34 |
-| array16          | 53       |0b00110101 | 0x35 |
-| array32          | 54       |0b00110110 | 0x36 |
-| array64          | 55       |0b00110111 | 0x37 |
-| array128         | 56       |0b00111000 | 0x38 |
-| objectStart      | 57       |0b00111001 | 0x39 |
-| objectEnd        | 58       |0b00111010 | 0x3a |
-| setStart         | 59       |0b00111011 | 0x3b |
-| setEnd           | 60       |0b00111100 | 0x3c |
-| mapStart         | 61       |0b00111101 | 0x3d |
-| mapEnd           | 62       |0b00111110 | 0x3e |
+| array8           | 47       |0b00101111 | 0x2f |
+| array16          | 48       |0b00110000 | 0x30 |
+| array32          | 49       |0b00110001 | 0x31 |
+| array64          | 50       |0b00110010 | 0x32 |
+| array128         | 51       |0b00110011 | 0x33 |
+| objectStart      | 52       |0b00110100 | 0x34 |
+| objectEnd        | 53       |0b00110101 | 0x35 |
+| setStart         | 54       |0b00110110 | 0x36 |
+| setEnd           | 55       |0b00110111 | 0x37 |
+| mapStart         | 56       |0b00111000 | 0x38 |
+| mapEnd           | 57       |0b00111001 | 0x39 |
 
 ## Notation in diagrams
 
@@ -382,8 +382,183 @@ string128 stores a utf8 string with a byte length of L
 
 stringn stores a utf8 string which has a N-byte byte length of L
 +--------+--------+--------+--------+
-|  0x20  |    N   |    L   | String |
+|  0x21  |    N   |    L   | String |
 +--------+--------+--------+--------+
 [   1    ][   1   ][   N   ][   L   ]
+
+Where L is stored in little-endian byte order.
 ```
 
+### Binary
+
+```
+bin8 stores a binary sequence with a byte length of L
++--------+--------+--------+
+|  0x22  |    L   |  Data  |
++--------+--------+--------+
+[   1    ][   1   ][   L   ]
+
+bin16 stores a binary sequence with a byte length of L
++--------+--------+--------+
+|  0x23  |    L   |  Data  |
++--------+--------+--------+
+[   1    ][   2   ][   L   ]
+
+bin32 stores a binary sequence with a byte length of L
++--------+--------+--------+
+|  0x24  |    L   |  Data  |
++--------+--------+--------+
+[   1    ][   4   ][   L   ]
+
+bin64 stores a binary sequence with a byte length of L
++--------+--------+--------+
+|  0x25  |    L   |  Data  |
++--------+--------+--------+
+[   1    ][   8   ][   L   ]
+
+bin128 stores a binary sequence with a byte length of L
++--------+--------+--------+
+|  0x26  |    L   |  Data  |
++--------+--------+--------+
+[   1    ][  16   ][   L   ]
+
+binn stores a binary sequence which has a N-byte byte length of L
++--------+--------+--------+--------+
+|  0x27  |    N   |    L   |  Data  |
++--------+--------+--------+--------+
+[   1    ][   1   ][   N   ][   L   ]
+
+Where L is stored in little-endian byte order.
+```
+
+### Boolean
+
+```
+true stores a boolean value of true
++--------+
+|  0x28  |
++--------+
+[   1    ]
+
+false stores a boolean value of false
++--------+
+|  0x29  |
++--------+
+[   1    ]
+```
+
+### Date
+
+```
+date stores a 32-bit little-endian uint32 date value
++--------+--------+
+|  0x2a  |  Date  |
++--------+--------+
+[   1    ][   4   ]
+
+date64 stores a 64-bit little-endian uint64 date value
++--------+--------+
+|  0x2b  |  Date  |
++--------+--------+
+[   1    ][   8   ]
+```
+
+### Constructor
+
+```
+constructor8 stores a constructor whose identifier fits in one byte.
++--------+--------+~~~~~~~~~~~+
+|  0x2c  |   Id   | Arguments |
++--------+--------+~~~~~~~~~~~+
+[   1    ][   1   ][ 1x Array ]
+
+constructor16 stores a constructor whose identifier fits in two bytes.
++--------+--------+~~~~~~~~~~~+
+|  0x2d  |   Id   | Arguments |
++--------+--------+~~~~~~~~~~~+
+[   1    ][   2   ][ 1x Array ]
+
+constructor32 stores a constructor whose identifier fits in four bytes.
++--------+--------+~~~~~~~~~~~+
+|  0x2e  |   Id   | Arguments |
++--------+--------+~~~~~~~~~~~+
+[   1    ][   4   ][ 1x Array ]
+
+Where
+* Id is a unique positive numeric identifier assigned to the custom class, written in little-endian byte order.
+* Arguments is an array of arguments that will get passed to the custom class.
+```
+
+### Array
+
+```
+array8 stores an array of length L
++--------+--------+~~~~~~~~~+
+|  0x2f  |    L   |  Items  |
++--------+--------+~~~~~~~~~+
+[   1    ][   1   ][   L    ]
+
+array16 stores an array of length L
++--------+--------+~~~~~~~~~+
+|  0x30  |    L   |  Items  |
++--------+--------+~~~~~~~~~+
+[   1    ][   2   ][   L    ]
+
+array32 stores an array of length L
++--------+--------+~~~~~~~~~+
+|  0x31  |    L   |  Items  |
++--------+--------+~~~~~~~~~+
+[   1    ][   4   ][   L    ]
+
+array64 stores an array of length L
++--------+--------+~~~~~~~~~+
+|  0x32  |    L   |  Items  |
++--------+--------+~~~~~~~~~+
+[   1    ][   8   ][   L    ]
+
+array128 stores an array of length L
++--------+---------+~~~~~~~~~+
+|  0x33  |    L    |  Items  |
++--------+---------+~~~~~~~~~+
+[   1    ][   16   ][   L    ]
+
+Where L is stored in little-endian byte order.
+```
+
+### Object
+
+```
+object stores an object with unknown number of keys
++--------+~~~~~~~~~~~~~~~+--------+
+|  0x34  |  Key / Value  |  0x35  |
++--------+~~~~~~~~~~~~~~~+--------+
+[   1    ][   unknown    ][   1   ]
+
+Where
+* odd elements in objects are keys of a map
+* the next element of a key is its associated value
+```
+
+### Set
+
+```
+set stores a set with unknown number of items
++--------+~~~~~~~~~~+--------+
+|  0x36  |   Items  |  0x37  |
++--------+~~~~~~~~~~+--------+
+[   1    ][ unknown ][   1   ]
+```
+
+### Map
+
+```
+map stores an map with unknown number of keys
++--------+~~~~~~~~~~~~~~~+--------+
+|  0x38  |  Key / Value  |  0x39  |
++--------+~~~~~~~~~~~~~~~+--------+
+[   1    ][   unknown    ][   1   ]
+
+Where
+* odd elements in objects are keys of a map
+* the next element of a key is its associated value
+```
