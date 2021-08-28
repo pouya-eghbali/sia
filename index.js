@@ -202,20 +202,25 @@ class Sia {
     const type = typeof item;
     switch (type) {
       case "string":
-        return this.addString(item);
+        this.addString(item);
+        return;
 
       case "undefined":
-        return this.addUndefined(item);
+        this.addUndefined(item);
+        return;
 
       case "number":
-        return this.addNumber(item);
+        this.addNumber(item);
+        return;
 
       case "boolean":
-        return this.addBoolean(item);
+        this.addBoolean(item);
+        return;
 
       case "object": {
         if (item === null) {
-          return this.addNull(item);
+          this.addNull(item);
+          return;
         }
         const { constructor } = item;
         if (constructor === Object) {
@@ -230,7 +235,8 @@ class Sia {
             }
             this.serializeItem(item[key]);
           }
-          return this.endObject();
+          this.endObject();
+          return;
         } else if (Array.isArray(item)) {
           this.startArray(item.length);
           for (const member of item) {
@@ -243,6 +249,7 @@ class Sia {
             this.serializeItem(member);
           }
           this.endSet();
+          return;
         } else if (constructor === Map) {
           this.startMap();
           for (const [key, value] of item) {
@@ -250,8 +257,31 @@ class Sia {
             this.serializeItem(value);
           }
           this.endMap();
+          return;
+        } else if (constructor === Buffer) {
+          const { length } = item;
+          if (item.length < 0x100) {
+            this.writeUInt8(SIA_TYPES.bin8);
+            this.writeUInt8(length);
+            item.copy(this.buffer, this.offset);
+            this.offset += length;
+          } else if (item.length < 0x10000) {
+            this.writeUInt8(SIA_TYPES.bin16);
+            this.writeUInt16(length);
+            item.copy(this.buffer, this.offset);
+            this.offset += length;
+          } else if (item.length < 0x100000000) {
+            this.writeUInt8(SIA_TYPES.bin32);
+            this.writeUInt32(length);
+            item.copy(this.buffer, this.offset);
+            this.offset += length;
+          } else {
+            throw `Buffer of size ${length} is too big to serialize`;
+          }
+          return;
         } else {
-          return this.addCustomType(item, constructor);
+          this.addCustomType(item, constructor);
+          return;
         }
       }
     }
@@ -349,29 +379,49 @@ class DeSia {
         const length = this.readUInt8();
         const str = utfz.unpack(this.buffer, length, this.offset);
         this.offset += length;
-        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string8: {
         const length = this.readUInt8();
         const str = this.readString(length);
-        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string16: {
         const length = this.readUInt16();
         const str = this.readString(length);
-        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string32: {
         const length = this.readUInt32();
         const str = this.readString(length);
-        //this.map[this.strings++] = str;
         return str;
+      }
+
+      case SIA_TYPES.bin8: {
+        const length = this.readUInt8();
+        const buf = Buffer.allocUnsafeSlow(length);
+        this.buffer.copy(buf, 0, this.offset, this.offset + length);
+        this.offset += length;
+        return buf;
+      }
+
+      case SIA_TYPES.bin16: {
+        const length = this.readUInt16();
+        const buf = Buffer.allocUnsafeSlow(length);
+        this.buffer.copy(buf, 0, this.offset, this.offset + length);
+        this.offset += length;
+        return buf;
+      }
+
+      case SIA_TYPES.bin32: {
+        const length = this.readUInt32();
+        const buf = Buffer.allocUnsafeSlow(length);
+        this.buffer.copy(buf, 0, this.offset, this.offset + length);
+        this.offset += length;
+        return buf;
       }
 
       case SIA_TYPES.int8: {

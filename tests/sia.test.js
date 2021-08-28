@@ -217,6 +217,27 @@ test("Serialize custom classes with uint32 code size", () => {
   expect(deserialized.name).toEqual("Pouya");
 });
 
+test("Serialize uint8 size buffer", () => {
+  const buf = Buffer.alloc(0x10);
+  const serialized = sia(buf);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(buf);
+});
+
+test("Serialize uint16 size buffer", () => {
+  const buf = Buffer.alloc(0x100);
+  const serialized = sia(buf);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(buf);
+});
+
+test("Serialize uint32 size buffer", () => {
+  const buf = Buffer.alloc(0x10000);
+  const serialized = sia(buf);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(buf);
+});
+
 test("Throw on custom classes with huge code size", () => {
   class Person {
     constructor(name) {
@@ -343,6 +364,19 @@ test("Throw on huge array", () => {
   });
   expect(() => sia(hugeArray)).toThrow(
     `Array of size ${length} is too big to serialize`
+  );
+});
+
+test("Throw on huge buffer", () => {
+  const length = 0x100000000;
+  const hugeArray = new Proxy(Buffer.alloc(100), {
+    get(target, prop, receiver) {
+      if (prop === "length") return length;
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+  expect(() => sia(hugeArray)).toThrow(
+    `Buffer of size ${length} is too big to serialize`
   );
 });
 
