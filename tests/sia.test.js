@@ -69,6 +69,13 @@ test("Serialize big array", () => {
   expect(deserialized).toEqual(strings);
 });
 
+test("Serialize utf8 string8", () => {
+  const strings = ["a".repeat(100)];
+  const serialized = sia(strings);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(strings);
+});
+
 test("Serialize big strings", () => {
   const strings = ["a".repeat(0x100), "b".repeat(0x10000)];
   const serialized = sia(strings);
