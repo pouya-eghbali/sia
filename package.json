@@ -27,13 +27,13 @@
     "node-fetch": "^2.6.1",
     "prettier": "^2.3.2",
     "pretty-bytes": "^5.4.0",
-    "stats-lite": "^2.2.0"
-  },
-  "dependencies": {
-    "@assemblyscript/loader": "^0.19.11",
+    "stats-lite": "^2.2.0",
     "@protobufjs/utf8": "^1.1.0",
     "iconv-lite": "^0.4.24",
     "lzutf8": "^0.6.0",
     "utf8-buffer": "^1.0.0"
+  },
+  "dependencies": {
+    "utfz-lib": "^0.2.0"
   }
 }

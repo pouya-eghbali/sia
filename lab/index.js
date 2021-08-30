@@ -1,6 +1,7 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
 const utfz = require("./utfz");
+const packr = require("../benchmark/msgpackr");
 
 class Sia {
   constructor({ size = 33554432, constructors = builtinConstructors } = {}) {
@@ -23,13 +24,13 @@ class Sia {
     this.offset += 1;
   }
   writeUInt16(number) {
-    //this.buffer.writeUInt16BE(number, this.offset);
-    this.buffer[this.offset] = number >> 8;
-    this.buffer[this.offset + 1] = number & 0xff;
+    //this.buffer.writeUInt16LE(number, this.offset);
+    this.buffer[this.offset] = number & 0xff;
+    this.buffer[this.offset + 1] = number >> 8;
     this.offset += 2;
   }
   writeUInt32(number) {
-    this.buffer.writeUInt32BE(number, this.offset);
+    this.buffer.writeUInt32LE(number, this.offset);
     this.offset += 4;
   }
   writeInt8(number) {
@@ -37,34 +38,32 @@ class Sia {
     this.offset += 1;
   }
   writeInt16(number) {
-    this.buffer.writeInt16BE(number, this.offset);
+    this.buffer.writeInt16LE(number, this.offset);
     this.offset += 2;
   }
   writeInt32(number) {
-    this.buffer.writeInt32BE(number, this.offset);
+    this.buffer.writeInt32LE(number, this.offset);
     this.offset += 4;
   }
   writeDouble(number) {
-    this.buffer.writeDoubleBE(number, this.offset);
+    this.buffer.writeDoubleLE(number, this.offset);
     this.offset += 8;
   }
   addString(string) {
     const { length } = string;
     // See benchmarks/string/both
-    if (length < 24) {
-      this.writeUInt8(SIA_TYPES.utfz);
-      const byteLength = utfz.pack(
-        string,
-        length,
+    const maxBytes = length * 3;
+    if (maxBytes < 180) {
+      this.writeUInt8(SIA_TYPES.string8);
+      const byteLength = packr.write(
         this.buffer,
-        this.offset + 1
+        this.offset + 1,
+        string,
+        length
       );
       this.buffer.writeUInt8(byteLength, this.offset);
       this.offset += byteLength + 1;
-      return;
-    }
-    const maxBytes = length * 3;
-    if (maxBytes < 0x100) {
+    } else if (maxBytes < 0x100) {
       //if (length < 128) {
       this.writeUInt8(SIA_TYPES.string8);
       const byteLength = this.writeString(string, this.offset + 1);
@@ -79,12 +78,12 @@ class Sia {
     } else if (maxBytes < 0x10000) {
       this.writeUInt8(SIA_TYPES.string16);
       const byteLength = this.writeString(string, this.offset + 2);
-      this.buffer.writeUInt16BE(byteLength, this.offset);
+      this.buffer.writeUInt16LE(byteLength, this.offset);
       this.offset += byteLength + 2;
     } else {
       this.writeUInt8(SIA_TYPES.string32);
       const byteLength = this.writeString(string, this.offset + 4);
-      this.buffer.writeUInt32BE(byteLength, this.offset);
+      this.buffer.writeUInt32LE(byteLength, this.offset);
       this.offset += byteLength + 4;
     }
   }
@@ -202,56 +201,97 @@ class Sia {
     const type = typeof item;
     switch (type) {
       case "string":
-        return this.addString(item);
+        this.addString(item);
+        return;
 
       case "undefined":
-        return this.addUndefined(item);
+        this.addUndefined(item);
+        return;
 
       case "number":
-        return this.addNumber(item);
+        this.addNumber(item);
+        return;
 
       case "boolean":
-        return this.addBoolean(item);
+        this.addBoolean(item);
+        return;
 
       case "object": {
         if (item === null) {
-          return this.addNull(item);
+          this.addNull(item);
+          return;
         }
         const { constructor } = item;
-        if (constructor === Object) {
-          this.startObject();
-          for (const key in item) {
-            const ref = this.map.get(key);
-            if (!ref) {
-              this.map.set(key, this.strings++);
-              this.addString(key);
-            } else {
-              this.addRef(ref);
+        switch (constructor) {
+          case Object: {
+            this.startObject();
+            for (const key in item) {
+              const ref = this.map.get(key);
+              if (!ref) {
+                this.map.set(key, this.strings++);
+                this.addString(key);
+              } else {
+                this.addRef(ref);
+              }
+              this.serializeItem(item[key]);
             }
-            this.serializeItem(item[key]);
+            this.endObject();
+            return;
           }
-          return this.endObject();
-        } else if (Array.isArray(item)) {
-          this.startArray(item.length);
-          for (const member of item) {
-            this.serializeItem(member);
+
+          case Array: {
+            this.startArray(item.length);
+            for (const member of item) {
+              this.serializeItem(member);
+            }
+            return;
           }
-          return;
-        } else if (constructor === Set) {
-          this.startSet();
-          for (const member of item) {
-            this.serializeItem(member);
+
+          case Set: {
+            this.startSet();
+            for (const member of item) {
+              this.serializeItem(member);
+            }
+            this.endSet();
+            return;
           }
-          this.endSet();
-        } else if (constructor === Map) {
-          this.startMap();
-          for (const [key, value] of item) {
-            this.serializeItem(key);
-            this.serializeItem(value);
+
+          case Map: {
+            this.startMap();
+            for (const [key, value] of item) {
+              this.serializeItem(key);
+              this.serializeItem(value);
+            }
+            this.endMap();
+            return;
           }
-          this.endMap();
-        } else {
-          return this.addCustomType(item, constructor);
+
+          case Buffer: {
+            const { length } = item;
+            if (item.length < 0x100) {
+              this.writeUInt8(SIA_TYPES.bin8);
+              this.writeUInt8(length);
+              item.copy(this.buffer, this.offset);
+              this.offset += length;
+            } else if (item.length < 0x10000) {
+              this.writeUInt8(SIA_TYPES.bin16);
+              this.writeUInt16(length);
+              item.copy(this.buffer, this.offset);
+              this.offset += length;
+            } else if (item.length < 0x100000000) {
+              this.writeUInt8(SIA_TYPES.bin32);
+              this.writeUInt32(length);
+              item.copy(this.buffer, this.offset);
+              this.offset += length;
+            } else {
+              throw `Buffer of size ${length} is too big to serialize`;
+            }
+            return;
+          }
+
+          default:
+            this.addCustomType(item, constructor);
+            return;
         }
       }
     }
@@ -309,17 +349,9 @@ class DeSia {
         return this.map[ref];
       }
 
-      case SIA_TYPES.utfz: {
-        const length = this.readUInt8();
-        const str = utfz.unpack(this.buffer, length, this.offset);
-        this.offset += length;
-        this.map[this.strings++] = str;
-        return str;
-      }
-
       case SIA_TYPES.string8: {
         const length = this.readUInt8();
-        const str = this.readString(length);
+        const str = this.readString8(length);
         this.map[this.strings++] = str;
         return str;
       }
@@ -349,29 +381,49 @@ class DeSia {
         const length = this.readUInt8();
         const str = utfz.unpack(this.buffer, length, this.offset);
         this.offset += length;
-        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string8: {
         const length = this.readUInt8();
-        const str = this.readString(length);
-        //this.map[this.strings++] = str;
+        const str = this.readString8(length);
         return str;
       }
 
       case SIA_TYPES.string16: {
         const length = this.readUInt16();
         const str = this.readString(length);
-        //this.map[this.strings++] = str;
         return str;
       }
 
       case SIA_TYPES.string32: {
         const length = this.readUInt32();
         const str = this.readString(length);
-        //this.map[this.strings++] = str;
         return str;
+      }
+
+      case SIA_TYPES.bin8: {
+        const length = this.readUInt8();
+        const buf = Buffer.allocUnsafeSlow(length);
+        this.buffer.copy(buf, 0, this.offset, this.offset + length);
+        this.offset += length;
+        return buf;
+      }
+
+      case SIA_TYPES.bin16: {
+        const length = this.readUInt16();
+        const buf = Buffer.allocUnsafeSlow(length);
+        this.buffer.copy(buf, 0, this.offset, this.offset + length);
+        this.offset += length;
+        return buf;
+      }
+
+      case SIA_TYPES.bin32: {
+        const length = this.readUInt32();
+        const buf = Buffer.allocUnsafeSlow(length);
+        this.buffer.copy(buf, 0, this.offset, this.offset + length);
+        this.offset += length;
+        return buf;
       }
 
       case SIA_TYPES.int8: {
@@ -513,10 +565,10 @@ class DeSia {
     return this.buffer[this.offset++];
   }
   readUInt16() {
-    return (this.buffer[this.offset++] << 8) + this.buffer[this.offset++];
+    return this.buffer[this.offset++] + (this.buffer[this.offset++] << 8);
   }
   readUInt32() {
-    const uInt32 = this.buffer.readUInt32BE(this.offset);
+    const uInt32 = this.buffer.readUInt32LE(this.offset);
     this.offset += 4;
     return uInt32;
   }
@@ -524,19 +576,27 @@ class DeSia {
     return this.buffer.readInt8(this.offset++);
   }
   readInt16() {
-    const int16 = this.buffer.readInt16BE(this.offset);
+    const int16 = this.buffer.readInt16LE(this.offset);
     this.offset += 2;
     return int16;
   }
   readInt32() {
-    const int32 = this.buffer.readInt32BE(this.offset);
+    const int32 = this.buffer.readInt32LE(this.offset);
     this.offset += 4;
     return int32;
   }
   readDouble() {
-    const uInt64 = this.buffer.readDoubleBE(this.offset);
+    const uInt64 = this.buffer.readDoubleLE(this.offset);
     this.offset += 8;
     return uInt64;
+  }
+  readString8(length) {
+    const str =
+      length < 33
+        ? packr.read(this.buffer, this.offset, length)
+        : this.buffer.toString("utf8", this.offset, this.offset + length);
+    this.offset += length;
+    return str;
   }
   readString(length) {
     const str = this.buffer.toString("utf8", this.offset, this.offset + length);

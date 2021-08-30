@@ -5,10 +5,12 @@ const msgpackr = require("../msgpackr");
 
 const options = {};
 
-for (const size of [2, 10, 15, 20, 21, 22, 23, 24, 25, 30, 40]) {
+const sizes = new Array(35).fill().map((_, i) => i + 37);
+
+for (const size of sizes) {
   const suite = new Benchmark.Suite();
 
-  const message = "abc".repeat(size);
+  const message = "x".repeat(size);
 
   const buf1 = Buffer.alloc(1000);
   const lbuf = buf1.write(message);
@@ -17,7 +19,7 @@ for (const size of [2, 10, 15, 20, 21, 22, 23, 24, 25, 30, 40]) {
   const lutf = utf8.pack(message, buf2);
 
   const buf3 = Buffer.alloc(1000);
-  const lcom = utfComposite.pack(message, buf3);
+  const lcom = utfComposite.pack(message, message.length, buf3, 0);
 
   const buf4 = Buffer.alloc(1000);
   const lmsg = msgpackr.write(buf4, 0, message, message.length);
@@ -42,7 +44,7 @@ for (const size of [2, 10, 15, 20, 21, 22, 23, 24, 25, 30, 40]) {
     .add(
       "utfComposite.unpack",
       function () {
-        utfComposite.unpack(buf3, lcom);
+        utfComposite.unpack(buf3, lcom, 0);
       },
       options
     )

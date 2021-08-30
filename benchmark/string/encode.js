@@ -5,10 +5,12 @@ const msgpackr = require("../msgpackr");
 
 const options = {};
 
-for (const size of [2, 10, 15, 20, 21, 22, 23, 24, 25, 30, 40]) {
+const sizes = new Array(40).fill().map((_, i) => i + 1);
+
+for (const size of sizes) {
   const suite = new Benchmark.Suite();
   const buf = Buffer.alloc(1000);
-  const message = "abc".repeat(size);
+  const message = "x".repeat(size);
 
   console.log(`Running tests for size: ${size}`);
   // add tests
@@ -30,7 +32,7 @@ for (const size of [2, 10, 15, 20, 21, 22, 23, 24, 25, 30, 40]) {
     .add(
       "utfComposite.pack",
       function () {
-        utfComposite.pack(message, buf);
+        utfComposite.pack(message, message.length, buf, 0);
       },
       options
     )

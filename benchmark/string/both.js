@@ -16,6 +16,10 @@ for (const size of new Array(30).fill().map((_, i) => i * 3 + 1)) {
   const buf3 = Buffer.alloc(1000);
   const buf4 = Buffer.alloc(1000);
   const buf5 = Buffer.alloc(1000);
+  const buf6 = Buffer.alloc(1000);
+  const buf7 = Buffer.alloc(1000);
+
+  const { fromCharCode } = String;
 
   console.log(`Running tests for size: ${size}`);
   // add tests
@@ -39,8 +43,38 @@ for (const size of new Array(30).fill().map((_, i) => i * 3 + 1)) {
     .add(
       "utfz",
       function () {
-        const length = utfComposite.pack(message, buf3);
-        utfComposite.unpack(buf3, length);
+        const length = utfComposite.pack(message, message.length, buf3, 0);
+        utfComposite.unpack(buf3, length, 0);
+      },
+      options
+    )
+    .add(
+      "utf16",
+      function () {
+        const { length } = message;
+        for (let i = 0; i < length; i++) {
+          const code = message.charCodeAt(i);
+          buf6[i * 2] = code >> 8;
+          buf6[i * 2 + 1] = code & 0xff;
+        }
+        buf6.toString("utf16le", 0, length);
+      },
+      options
+    )
+    .add(
+      "utf16raw",
+      function () {
+        const { length } = message;
+        for (let i = 0; i < length; i++) {
+          const code = message.charCodeAt(i);
+          buf7[i * 2] = code >> 8;
+          buf7[i * 2 + 1] = code & 0xff;
+        }
+        const units = [];
+        for (let i = 0; i < length; i++) {
+          units.push((buf7[i * 2] << 8) + buf7[i * 2 + 1]);
+        }
+        fromCharCode.apply(null, units);
       },
       options
     )

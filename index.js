@@ -1,6 +1,6 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
-const utfz = require("./utfz");
+const utfz = require("./benchmark/utf-composite");
 
 class Sia {
   constructor({ size = 33554432, constructors = builtinConstructors } = {}) {
@@ -51,7 +51,7 @@ class Sia {
   addString(string) {
     const { length } = string;
     // See benchmarks/string/both
-    if (length < 24) {
+    if (length < 60) {
       this.writeUInt8(SIA_TYPES.utfz);
       const byteLength = utfz.pack(
         string,
@@ -223,65 +223,76 @@ class Sia {
           return;
         }
         const { constructor } = item;
-        if (constructor === Object) {
-          this.startObject();
-          for (const key in item) {
-            const ref = this.map.get(key);
-            if (!ref) {
-              this.map.set(key, this.strings++);
-              this.addString(key);
-            } else {
-              this.addRef(ref);
+        switch (constructor) {
+          case Object: {
+            this.startObject();
+            for (const key in item) {
+              const ref = this.map.get(key);
+              if (!ref) {
+                this.map.set(key, this.strings++);
+                this.addString(key);
+              } else {
+                this.addRef(ref);
+              }
+              this.serializeItem(item[key]);
             }
-            this.serializeItem(item[key]);
+            this.endObject();
+            return;
           }
-          this.endObject();
-          return;
-        } else if (Array.isArray(item)) {
-          this.startArray(item.length);
-          for (const member of item) {
-            this.serializeItem(member);
+
+          case Array: {
+            this.startArray(item.length);
+            for (const member of item) {
+              this.serializeItem(member);
+            }
+            return;
           }
-          return;
-        } else if (constructor === Set) {
-          this.startSet();
-          for (const member of item) {
-            this.serializeItem(member);
+
+          case Set: {
+            this.startSet();
+            for (const member of item) {
+              this.serializeItem(member);
+            }
+            this.endSet();
+            return;
           }
-          this.endSet();
-          return;
-        } else if (constructor === Map) {
-          this.startMap();
-          for (const [key, value] of item) {
-            this.serializeItem(key);
-            this.serializeItem(value);
+
+          case Map: {
+            this.startMap();
+            for (const [key, value] of item) {
+              this.serializeItem(key);
+              this.serializeItem(value);
+            }
+            this.endMap();
+            return;
           }
-          this.endMap();
-          return;
-        } else if (constructor === Buffer) {
-          const { length } = item;
-          if (item.length < 0x100) {
-            this.writeUInt8(SIA_TYPES.bin8);
-            this.writeUInt8(length);
-            item.copy(this.buffer, this.offset);
-            this.offset += length;
-          } else if (item.length < 0x10000) {
-            this.writeUInt8(SIA_TYPES.bin16);
-            this.writeUInt16(length);
-            item.copy(this.buffer, this.offset);
-            this.offset += length;
-          } else if (item.length < 0x100000000) {
-            this.writeUInt8(SIA_TYPES.bin32);
-            this.writeUInt32(length);
-            item.copy(this.buffer, this.offset);
-            this.offset += length;
-          } else {
-            throw `Buffer of size ${length} is too big to serialize`;
+
+          case Buffer: {
+            const { length } = item;
+            if (item.length < 0x100) {
+              this.writeUInt8(SIA_TYPES.bin8);
+              this.writeUInt8(length);
+              item.copy(this.buffer, this.offset);
+              this.offset += length;
+            } else if (item.length < 0x10000) {
+              this.writeUInt8(SIA_TYPES.bin16);
+              this.writeUInt16(length);
+              item.copy(this.buffer, this.offset);
+              this.offset += length;
+            } else if (item.length < 0x100000000) {
+              this.writeUInt8(SIA_TYPES.bin32);
+              this.writeUInt32(length);
+              item.copy(this.buffer, this.offset);
+              this.offset += length;
+            } else {
+              throw `Buffer of size ${length} is too big to serialize`;
+            }
+            return;
           }
-          return;
-        } else {
-          this.addCustomType(item, constructor);
-          return;
+
+          default:
+            this.addCustomType(item, constructor);
+            return;
         }
       }
     }

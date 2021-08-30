@@ -26,7 +26,7 @@ const typeNames = [
   "ref64",
   "ref128",
   "refn",
-  "utfz",
+  "cachedString",
   "string8",
   "string16",
   "string32",
