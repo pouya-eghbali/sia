@@ -48,7 +48,7 @@ WIP
 The Node Sia library exports 5 items:
 
 ```JavaScript
-const { sia, desia, Sia, DeSia, constructors } = require("sia-serializer");
+const { sia, desia, Sia, DeSia, constructors } = require("sializer");
 ```
 
 - `sia(data)` function serializes the given data using the default parameters.
