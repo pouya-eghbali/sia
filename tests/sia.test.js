@@ -70,7 +70,7 @@ test("Serialize big array", () => {
 });
 
 test("Serialize string8 keys", () => {
-  const object = Object.fromEntries([["a".repeat(100), null]]);
+  const object = Object.fromEntries([["a".repeat(61), null]]);
   const serialized = sia(object);
   const deserialized = desia(serialized);
   expect(deserialized).toEqual(object);
