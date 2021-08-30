@@ -1,6 +1,6 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
-const utfz = require("./benchmark/utf-composite");
+const utfz = require("utfz-lib");
 
 class Sia {
   constructor({ size = 33554432, constructors = builtinConstructors } = {}) {
