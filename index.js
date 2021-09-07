@@ -1,11 +1,14 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
 const utfz = require("utfz-lib");
+const { Buffer: BufferShim } = require("buffer/");
+
+const BufferClass = typeof Buffer === "undefined" ? BufferShim : Buffer;
 
 class Sia {
   constructor({ size = 33554432, constructors = builtinConstructors } = {}) {
     this.map = new Map();
-    this.buffer = Buffer.alloc(size);
+    this.buffer = BufferClass.alloc(size);
     this.offset = 0;
     this.constructors = constructors;
     this.strings = 0;
@@ -413,7 +416,7 @@ class DeSia {
 
       case SIA_TYPES.bin8: {
         const length = this.readUInt8();
-        const buf = Buffer.allocUnsafeSlow(length);
+        const buf = BufferClass.allocUnsafeSlow(length);
         this.buffer.copy(buf, 0, this.offset, this.offset + length);
         this.offset += length;
         return buf;
@@ -421,7 +424,7 @@ class DeSia {
 
       case SIA_TYPES.bin16: {
         const length = this.readUInt16();
-        const buf = Buffer.allocUnsafeSlow(length);
+        const buf = BufferClass.allocUnsafeSlow(length);
         this.buffer.copy(buf, 0, this.offset, this.offset + length);
         this.offset += length;
         return buf;
@@ -429,7 +432,7 @@ class DeSia {
 
       case SIA_TYPES.bin32: {
         const length = this.readUInt32();
-        const buf = Buffer.allocUnsafeSlow(length);
+        const buf = BufferClass.allocUnsafeSlow(length);
         this.buffer.copy(buf, 0, this.offset, this.offset + length);
         this.offset += length;
         return buf;
