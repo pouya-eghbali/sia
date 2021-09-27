@@ -71,7 +71,7 @@ const result = desia(buf);
 ### Sia class
 
 ```JavaScript
-const sia = New Sia({
+const sia = new Sia({
   size = 33554432, // Buffer size to use
   constructors = builtinConstructors // An array of extra classes and types
 });
