@@ -225,7 +225,7 @@ class Sia {
           this.addNull(item);
           return;
         }
-        const { constructor } = item;
+        const { constructor } = Object.getPrototypeOf(item);
         switch (constructor) {
           case Object: {
             this.startObject();
