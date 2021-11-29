@@ -1,14 +1,16 @@
 const builtinConstructors = require("./constructors");
 const SIA_TYPES = require("./types");
 const utfz = require("utfz-lib");
-const { Buffer: BufferShim } = require("buffer/");
-
-const BufferClass = typeof Buffer === "undefined" ? BufferShim : Buffer;
+const { Buffer, GrowingBuffer } = require("./buffer");
 
 class Sia {
-  constructor({ size = 33554432, constructors = builtinConstructors } = {}) {
+  constructor({
+    size = 33554432,
+    autoGrow = false,
+    constructors = builtinConstructors,
+  } = {}) {
     this.map = new Map();
-    this.buffer = BufferClass.alloc(size);
+    this.buffer = autoGrow ? GrowingBuffer.alloc(size) : Buffer.alloc(size);
     this.offset = 0;
     this.constructors = constructors;
     this.strings = 0;
@@ -26,7 +28,6 @@ class Sia {
     this.offset += 1;
   }
   writeUInt16(number) {
-    //this.buffer.writeUInt16LE(number, this.offset);
     this.buffer[this.offset] = number & 0xff;
     this.buffer[this.offset + 1] = number >> 8;
     this.offset += 2;
@@ -68,17 +69,10 @@ class Sia {
     }
     const maxBytes = length * 3;
     if (maxBytes < 0x100) {
-      //if (length < 128) {
       this.writeUInt8(SIA_TYPES.string8);
       const byteLength = this.writeString(string, this.offset + 1);
       this.buffer.writeUInt8(byteLength, this.offset);
       this.offset += byteLength + 1;
-      //} else {
-      //  this.writeUInt8(SIA_TYPES.string8);
-      //  const byteLength = this.writeString(string, this.offset + 1);
-      //  this.buffer.writeUInt8(byteLength, this.offset);
-      //  this.offset += byteLength + 1;
-      //}
     } else if (maxBytes < 0x10000) {
       this.writeUInt8(SIA_TYPES.string16);
       const byteLength = this.writeString(string, this.offset + 2);
@@ -416,7 +410,7 @@ class DeSia {
 
       case SIA_TYPES.bin8: {
         const length = this.readUInt8();
-        const buf = BufferClass.allocUnsafeSlow(length);
+        const buf = Buffer.allocUnsafeSlow(length);
         this.buffer.copy(buf, 0, this.offset, this.offset + length);
         this.offset += length;
         return buf;
@@ -424,7 +418,7 @@ class DeSia {
 
       case SIA_TYPES.bin16: {
         const length = this.readUInt16();
-        const buf = BufferClass.allocUnsafeSlow(length);
+        const buf = Buffer.allocUnsafeSlow(length);
         this.buffer.copy(buf, 0, this.offset, this.offset + length);
         this.offset += length;
         return buf;
@@ -432,7 +426,7 @@ class DeSia {
 
       case SIA_TYPES.bin32: {
         const length = this.readUInt32();
-        const buf = BufferClass.allocUnsafeSlow(length);
+        const buf = Buffer.allocUnsafeSlow(length);
         this.buffer.copy(buf, 0, this.offset, this.offset + length);
         this.offset += length;
         return buf;
