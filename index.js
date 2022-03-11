@@ -7,7 +7,7 @@ const BufferClass = typeof Buffer === "undefined" ? BufferShim : Buffer;
 
 class Sia {
   constructor({
-    size = 10,
+    size = 33554432,
     autoGrow = true,
     constructors = builtinConstructors,
   } = {}) {
