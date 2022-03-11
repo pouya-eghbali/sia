@@ -406,9 +406,8 @@ test(
 );
 
 test("Handle string greater than buffer size", () => {
-  const s = Array(2000).fill('x').join('');
+  const s = Array(2000).fill("x").join("");
   const serialized = sia(s);
   const deserialized = desia(serialized);
   expect(deserialized).toEqual(s);
 });
-

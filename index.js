@@ -6,7 +6,11 @@ const { Buffer: BufferShim } = require("buffer/");
 const BufferClass = typeof Buffer === "undefined" ? BufferShim : Buffer;
 
 class Sia {
-  constructor({ size = 10, autoGrow = true, constructors = builtinConstructors } = {}) {
+  constructor({
+    size = 10,
+    autoGrow = true,
+    constructors = builtinConstructors,
+  } = {}) {
     this.map = new Map();
     this.buffer = BufferClass.alloc(size);
     this.offset = 0;
@@ -14,21 +18,21 @@ class Sia {
     this.strings = 0;
     if (autoGrow) {
       this._serializeItem = this.serializeItem;
-      this.serializeItem = function(item) {
+      this.serializeItem = function (item) {
         // parent serializeItem invocation overran buffer, trigger redo at higher level
         if (this.offset > this.buffer.length) {
-          throw new RangeError('buffer overrun');
+          throw new RangeError("buffer overrun");
         }
         const origOffset = this.offset;
         const origStrings = this.strings;
         try {
           this._serializeItem(item);
-          // this serializeItem invocation overran buffer, trigger redo 
+          // this serializeItem invocation overran buffer, trigger redo
           if (this.offset > this.buffer.length) {
-            throw new RangeError('buffer overrun');
+            throw new RangeError("buffer overrun");
           }
         } catch (e) {
-          if (e.name === 'RangeError') {
+          if (e.name === "RangeError") {
             // handle buffer overrun by resetting state to start, doubling buffer size
             const newBuffer = BufferClass.alloc(this.buffer.length * 2);
             this.buffer.copy(newBuffer);
@@ -41,7 +45,7 @@ class Sia {
             throw e;
           }
         }
-      }
+      };
     }
   }
   reset() {
