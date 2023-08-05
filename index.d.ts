@@ -13,14 +13,14 @@ declare type InternallySupportTypes =
   | Buffer
   | InternallySupportTypes[];
 
-type PrototypeConstructor<T> = Function & { prototype: T }
-type ConstructorFunction<T> = abstract new(...args: any[]) => T
+type PrototypeConstructor<T> = Function & { prototype: T };
+type ConstructorFunction<T> = abstract new (...args: any[]) => T;
 
 /**
  * @example
  * ```
  * import {ConstructorFactory, Sia} from "."
- * 
+ *
  * const arrayBufferFactory: ConstructorFactory<ArrayBuffer, [Buffer]> = {
  *     code: 0, // Unique POsitive Integer
  *     constructor: ArrayBuffer,
@@ -30,7 +30,10 @@ type ConstructorFunction<T> = abstract new(...args: any[]) => T
  * const s = new Sia({constructors : [arrayBufferFactory]});
  * ```
  */
-export declare interface ConstructorFactory<T, R extends InternallySupportTypes[] = InternallySupportTypes[]> {
+export declare interface ConstructorFactory<
+  T,
+  R extends InternallySupportTypes[] = InternallySupportTypes[]
+> {
   /**
    * The custom class you want to support
    */
@@ -57,24 +60,23 @@ declare type SiaOption = {
    */
   size?: number | undefined;
   /**
-  * An array of extra types and classes, it includes instructions for deserializing the custom types and classes.
-  */
-  constructors?: Array<ConstructorFactory<any,any>>;
+   * An array of extra types and classes, it includes instructions for deserializing the custom types and classes.
+   */
+  constructors?: Array<ConstructorFactory<any, any>>;
 };
 
 declare type DeSiaOption = {
-  
   /**
    * The minimum size of string map array to use.
    * @remarks
    * Use a big size if you're expecting to serialize huge objects
    */
   mapSize?: number | undefined;
-  
+
   /**
    * An array of extra types and classes, it includes instructions for deserializing the custom types and classes.
    */
-  constructors?: Array<ConstructorFactory<any,any>>;
+  constructors?: Array<ConstructorFactory<any, any>>;
 };
 
 /**
