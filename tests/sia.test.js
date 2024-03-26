@@ -33,6 +33,59 @@ test("Serialize maps", () => {
   expect(deserialized).toEqual(map);
 });
 
+test("Serialize map of set", () => {
+  const map = new Map([
+    [1, new Set([1, 2])],
+    [2, new Set([3, 4])],
+  ]);
+  const serialized = sia(map);
+  const deserialized = desia(serialized);
+  expect(deserialized).toBeInstanceOf(Map);
+  expect(deserialized).toEqual(map);
+});
+
+test("Serialize set of set", () => {
+  const map = new Set([
+    new Set([1, 2]), new Set([3, 4])
+  ]);
+  const serialized = sia(map);
+  const deserialized = desia(serialized);
+  expect(deserialized).toBeInstanceOf(Set);
+  expect(deserialized).toEqual(map);
+});
+
+test("Serialize map of map", () => {
+  const map = new Map([
+    [1, new Map([[1, 2]])],
+    [1, new Map([[3, 4]])]
+  ]);
+  const serialized = sia(map);
+  const deserialized = desia(serialized);
+  expect(deserialized).toBeInstanceOf(Map);
+  expect(deserialized).toEqual(map);
+});
+
+test("Serialize array of maps", () => {
+  const maps = [new Map([[1, 2], [3, 4]]), new Map([[5, 6], [7, 8]])];
+  const serialized = sia(maps);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(maps);
+});
+
+test("Serialize array of sets", () => {
+  const sets = [new Set([1, 2, 3]), new Set()];
+  const serialized = sia(sets);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(sets);
+});
+
+test("Serialize empty collections", () => {
+  const emptyCollections = [new Set(), new Set(), new Map(), []];
+  const serialized = sia(emptyCollections);
+  const deserialized = desia(serialized);
+  expect(deserialized).toEqual(emptyCollections);
+});
+
 test("Serialize integers", () => {
   const integers = [0x10, 0x100, 0x10000, 0x100000000];
   const serialized = sia(integers);
