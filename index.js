@@ -563,6 +563,7 @@ class DeSia {
           map.set(this.readBlock(), this.readBlock());
           curr = this.buffer[this.offset];
         }
+        this.offset++
         return map;
       }
 
@@ -573,6 +574,7 @@ class DeSia {
           set.add(this.readBlock());
           curr = this.buffer[this.offset];
         }
+        this.offset++
         return set;
       }
 
