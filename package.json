@@ -27,6 +27,7 @@
     "lz4": "^0.6.3",
     "lzutf8": "^0.6.0",
     "msgpackr": "^1.4.2",
+    "nan": "^2.19.0",
     "node-fetch": "^2.6.1",
     "prettier": "^2.3.2",
     "pretty-bytes": "^5.4.0",
