@@ -5,3 +5,4 @@ isolate-*
 *.cpuprofile
 *.ignore
 coverage
+dist
