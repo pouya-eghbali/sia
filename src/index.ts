@@ -1,6 +1,8 @@
 export class Sia {
   index: number = 0;
   content: Uint8Array = new Uint8Array(0);
+  encoder: TextEncoder = new TextEncoder();
+  decoder: TextDecoder = new TextDecoder();
 
   seek(index: number): Sia {
     this.index = index;
@@ -250,51 +252,43 @@ export class Sia {
   }
 
   addString8(str: string): Sia {
-    const encoder = new TextEncoder();
-    const encodedString = encoder.encode(str);
+    const encodedString = this.encoder.encode(str);
     return this.addByteArray8(encodedString);
   }
 
   readString8(): string {
     const bytes = this.readByteArray8();
-    const decoder = new TextDecoder();
-    return decoder.decode(bytes);
+    return this.decoder.decode(bytes);
   }
 
   addString16(str: string): Sia {
-    const encoder = new TextEncoder();
-    const encodedString = encoder.encode(str);
+    const encodedString = this.encoder.encode(str);
     return this.addByteArray16(encodedString);
   }
 
   readString16(): string {
     const bytes = this.readByteArray16();
-    const decoder = new TextDecoder();
-    return decoder.decode(bytes);
+    return this.decoder.decode(bytes);
   }
 
   addString32(str: string): Sia {
-    const encoder = new TextEncoder();
-    const encodedString = encoder.encode(str);
+    const encodedString = this.encoder.encode(str);
     return this.addByteArray32(encodedString);
   }
 
   readString32(): string {
     const bytes = this.readByteArray32();
-    const decoder = new TextDecoder();
-    return decoder.decode(bytes);
+    return this.decoder.decode(bytes);
   }
 
   addString64(str: string): Sia {
-    const encoder = new TextEncoder();
-    const encodedString = encoder.encode(str);
+    const encodedString = this.encoder.encode(str);
     return this.addByteArray64(encodedString);
   }
 
   readString64(): string {
     const bytes = this.readByteArray64();
-    const decoder = new TextDecoder();
-    return decoder.decode(bytes);
+    return this.decoder.decode(bytes);
   }
 
   addByteArrayN(bytes: Uint8Array): Sia {
