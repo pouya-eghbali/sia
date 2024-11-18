@@ -20,7 +20,7 @@ import {
   msgpackrFiveThousandUsersDecode,
 } from "./tests/msgpackr.js";
 
-const bench = new Bench({ name: "serialization", time: 2 * 1000 });
+const bench = new Bench({ name: "serialization", time: 60 * 1000 });
 
 bench.add("JSON", () => jsonFiveThousandUsers());
 bench.add("Sializer", () => siaFiveThousandUsers());
@@ -35,7 +35,7 @@ console.table(bench.table());
 
 const deserializeBench = new Bench({
   name: "deserialization",
-  time: 2 * 1000,
+  time: 60 * 1000,
 });
 
 deserializeBench.add("JSON", () => jsonFiveThousandUsersDecode());
