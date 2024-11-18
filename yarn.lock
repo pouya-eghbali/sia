@@ -930,6 +930,7 @@ __metadata:
     sializer: "npm:0"
     tinybench: "npm:^3.0.6"
     typescript: "npm:^5.4.3"
+    utfz-lib: "npm:^0.2.0"
   languageName: unknown
   linkType: soft
 

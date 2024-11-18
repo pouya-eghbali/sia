@@ -5,4 +5,10 @@ declare module "utfz-lib" {
     buffer: Uint8Array,
     offset: number
   ): number;
+
+  export function unpack(
+    buffer: Uint8Array,
+    byteLength: number,
+    offset: number
+  ): string;
 }

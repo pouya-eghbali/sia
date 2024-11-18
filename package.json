@@ -20,7 +20,8 @@
     "msgpackr": "^1.11.2",
     "sializer": "0",
     "tinybench": "^3.0.6",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.3",
+    "utfz-lib": "^0.2.0"
   },
   "packageManager": "yarn@4.4.1",
   "type": "module"
