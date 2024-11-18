@@ -7,12 +7,21 @@
   "scripts": {
     "build": "tsc",
     "lint": "tslint -p tsconfig.json",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "yarn build",
+    "benchmark": "yarn build && yarn node dist/benchmark/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@faker-js/faker": "^9.2.0",
+    "@types/node": "^22.9.0",
+    "cbor-x": "^1.6.0",
+    "msgpackr": "^1.11.2",
+    "sializer": "0",
+    "tinybench": "^3.0.6",
     "typescript": "^5.4.3"
-  }
+  },
+  "packageManager": "yarn@4.4.1",
+  "type": "module"
 }
