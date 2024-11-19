@@ -16,6 +16,10 @@ export const fiveUsers = faker.helpers.multiple(createRandomUser, {
   count: 5,
 });
 
+export const fiveHundredUsers = faker.helpers.multiple(createRandomUser, {
+  count: 500,
+});
+
 export const fiveThousandUsers = faker.helpers.multiple(createRandomUser, {
   count: 5_000,
 });

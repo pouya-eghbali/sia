@@ -22,9 +22,11 @@ export class Sia extends Buffer {
     return this;
   }
 
-  setContent(content: Uint8Array): Sia {
-    this.content = content;
+  setContent(uint8Array: Uint8Array): Sia {
+    this.size = uint8Array.length;
+    this.content = uint8Array;
     this.offset = 0;
+    this.dataView = new DataView(uint8Array.buffer);
     return this;
   }
 
