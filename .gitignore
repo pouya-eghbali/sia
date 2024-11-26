@@ -6,3 +6,4 @@ isolate-*
 *.ignore
 coverage
 dist
+.yarn

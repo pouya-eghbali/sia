@@ -1,254 +1,218 @@
-export class Sia {
-  index: number = 0;
-  content: Uint8Array = new Uint8Array(0);
+import { Buffer } from "./buffer.js";
+import { pack, unpack } from "utfz-lib";
+import { asciiToUint8Array, uint8ArrayToAscii } from "./ascii.js";
+
+const GLOBAL_SHARED_UNSAFE_BUFFER = new Uint8Array(32 * 1024 * 1024);
+
+export class Sia extends Buffer {
   encoder: TextEncoder = new TextEncoder();
   decoder: TextDecoder = new TextDecoder();
 
+  constructor(content?: Uint8Array) {
+    super(content || GLOBAL_SHARED_UNSAFE_BUFFER);
+  }
+
   seek(index: number): Sia {
-    this.index = index;
+    this.offset = index;
     return this;
   }
 
-  setContent(content: Uint8Array): Sia {
-    this.content = content;
+  skip(bytes: number): Sia {
+    this.offset += bytes;
+    return this;
+  }
+
+  setContent(uint8Array: Uint8Array): Sia {
+    this.size = uint8Array.length;
+    this.content = uint8Array;
+    this.offset = 0;
+    this.dataView = new DataView(uint8Array.buffer);
     return this;
   }
 
   embedSia(sia: Sia): Sia {
     // Add the content of the given Sia object to the current content
-    const newContent = new Uint8Array(this.content.length + sia.content.length);
-    newContent.set(this.content);
-    newContent.set(sia.content, this.content.length);
-    this.content = newContent;
+    this.add(sia.toUint8Array());
     return this;
   }
 
   embedBytes(bytes: Uint8Array): Sia {
     // Add the given bytes to the current content
-    const newContent = new Uint8Array(this.content.length + bytes.length);
-    newContent.set(this.content);
-    newContent.set(bytes, this.content.length);
-    this.content = newContent;
+    this.add(bytes);
     return this;
   }
 
   addUInt8(n: number): Sia {
     // Add a single byte to the content
-    const newContent = new Uint8Array(this.content.length + 1);
-    newContent.set(this.content);
-    newContent[this.content.length] = n;
-    this.content = newContent;
+    this.addOne(n);
     return this;
   }
 
   readUInt8(): number {
     // Read a single byte from the current index
-    if (this.index >= this.content.length) {
+    if (this.offset >= this.length) {
       throw new Error("Not enough data to read uint8");
     }
-    return this.content[this.index++];
+    return this.get(this.offset++);
   }
 
   addInt8(n: number): Sia {
     // Add a single signed byte to the content
-    const newContent = new Uint8Array(this.content.length + 1);
-    newContent.set(this.content);
-    newContent[this.content.length] = n;
-    this.content = newContent;
+    this.addOne(n);
     return this;
   }
 
+  // TODO: Fix signed integer reading
   readInt8(): number {
     // Read a single signed byte from the current index
-    if (this.index >= this.content.length) {
+    if (this.offset >= this.length) {
       throw new Error("Not enough data to read int8");
     }
-    return this.content[this.index++];
+    return this.get(this.offset++);
   }
 
   addUInt16(n: number): Sia {
     // Add a uint16 value to the content
-    const newContent = new Uint8Array(this.content.length + 2);
-    newContent.set(this.content);
-    const dataView = new DataView(
-      newContent.buffer,
-      newContent.byteOffset,
-      newContent.byteLength
-    );
-    dataView.setUint16(this.content.length, n, true);
-    this.content = newContent;
+    this.dataView.setUint16(this.offset, n, true);
+    this.offset += 2;
     return this;
   }
 
   readUInt16(): number {
     // Read a uint16 value from the current index
-    if (this.index + 2 > this.content.length) {
+    if (this.offset + 2 > this.content.length) {
       throw new Error("Not enough data to read uint16");
     }
-    const dataView = new DataView(
-      this.content.buffer,
-      this.content.byteOffset + this.index,
-      2
-    );
-    this.index += 2;
-    return dataView.getUint16(0, true);
+    const value = this.dataView.getUint16(this.offset, true);
+    this.offset += 2;
+    return value;
   }
 
   addInt16(n: number): Sia {
     // Add an int16 value to the content
-    const newContent = new Uint8Array(this.content.length + 2);
-    newContent.set(this.content);
-    const dataView = new DataView(
-      newContent.buffer,
-      newContent.byteOffset,
-      newContent.byteLength
-    );
-    dataView.setInt16(this.content.length, n, true);
-    this.content = newContent;
+    this.dataView.setInt16(this.offset, n, true);
+    this.offset += 2;
     return this;
   }
 
   readInt16(): number {
     // Read an int16 value from the current index
-    if (this.index + 2 > this.content.length) {
+    if (this.offset + 2 > this.content.length) {
       throw new Error("Not enough data to read int16");
     }
-    const dataView = new DataView(
-      this.content.buffer,
-      this.content.byteOffset + this.index,
-      2
-    );
-    this.index += 2;
-    return dataView.getInt16(0, true);
+    const value = this.dataView.getInt16(this.offset, true);
+    this.offset += 2;
+    return value;
   }
 
   addUInt32(n: number): Sia {
     // Add a uint32 value to the content
-    const newContent = new Uint8Array(this.content.length + 4);
-    newContent.set(this.content);
-    const dataView = new DataView(
-      newContent.buffer,
-      newContent.byteOffset,
-      newContent.byteLength
-    );
-    dataView.setUint32(this.content.length, n, true);
-    this.content = newContent;
+    this.dataView.setUint32(this.offset, n, true);
+    this.offset += 4;
     return this;
   }
 
   readUInt32(): number {
     // Read a uint32 value from the current index
-    if (this.index + 4 > this.content.length) {
+    if (this.offset + 4 > this.content.length) {
       throw new Error("Not enough data to read uint32");
     }
-    const dataView = new DataView(
-      this.content.buffer,
-      this.content.byteOffset + this.index,
-      4
-    );
-    this.index += 4;
-    return dataView.getUint32(0, true);
+    const value = this.dataView.getUint32(this.offset, true);
+    this.offset += 4;
+    return value;
   }
 
   addInt32(n: number): Sia {
     // Add an int32 value to the content
-    const newContent = new Uint8Array(this.content.length + 4);
-    newContent.set(this.content);
-    const dataView = new DataView(
-      newContent.buffer,
-      newContent.byteOffset,
-      newContent.byteLength
-    );
-    dataView.setInt32(this.content.length, n, true);
-    this.content = newContent;
+    this.dataView.setInt32(this.offset, n, true);
+    this.offset += 4;
     return this;
   }
 
   readInt32(): number {
     // Read an int32 value from the current index
-    if (this.index + 4 > this.content.length) {
+    if (this.offset + 4 > this.content.length) {
       throw new Error("Not enough data to read int32");
     }
-    const dataView = new DataView(
-      this.content.buffer,
-      this.content.byteOffset + this.index,
-      4
-    );
-    this.index += 4;
-    return dataView.getInt32(0, true);
+    const value = this.dataView.getInt32(this.offset, true);
+    this.offset += 4;
+    return value;
   }
 
   // Add a uint64 value to the content
   addUInt64(n: number): Sia {
-    // Ensure there's enough space to add 8 bytes
-    const newContent = new Uint8Array(this.content.length + 8);
-    newContent.set(this.content);
-    const dataView = new DataView(
-      newContent.buffer,
-      newContent.byteOffset,
-      newContent.byteLength
-    );
     // Append the uint64 value at the end of the current content
-    dataView.setUint32(this.content.length, n & 0xffffffff, true); // Lower 32 bits
-    dataView.setUint32(this.content.length + 4, n / 0x100000000, true); // Upper 32 bits
-    this.content = newContent;
+    this.dataView.setUint32(this.offset, n & 0xffffffff, true); // Lower 32 bits
+    this.dataView.setUint32(this.offset + 4, n / 0x100000000, true); // Upper 32 bits
+    this.offset += 8;
     return this;
   }
 
   // Read a uint64 value from the current index
   readUInt64(): number {
-    if (this.index + 8 > this.content.length) {
+    if (this.offset + 8 > this.content.length) {
       throw new Error("Not enough data to read uint64");
     }
-    const dataView = new DataView(
-      this.content.buffer,
-      this.content.byteOffset + this.index,
-      8
-    );
     // Read the uint64 value
-    const lower = dataView.getUint32(0, true);
-    const upper = dataView.getUint32(4, true);
-    this.index += 8;
+    const lower = this.dataView.getUint32(this.offset, true);
+    const upper = this.dataView.getUint32(this.offset + 4, true);
+    this.offset += 8;
     // JavaScript does not support 64-bit integers natively, so this is an approximation
     return upper * 0x100000000 + lower;
   }
 
   // Add an int64 value to the content
   addInt64(n: number): Sia {
-    const newContent = new Uint8Array(this.content.length + 8);
-    newContent.set(this.content);
-    const dataView = new DataView(
-      newContent.buffer,
-      newContent.byteOffset,
-      newContent.byteLength
-    );
-    // Append the int64 value at the end of the current content
-    dataView.setInt32(this.content.length, n & 0xffffffff, true); // Lower 32 bits as signed
-    dataView.setInt32(
-      this.content.length + 4,
-      Math.floor(n / 0x100000000),
-      true
-    ); // Upper 32 bits as signed
-    this.content = newContent;
+    const lower = n & 0xffffffff; // Extract lower 32 bits
+    const upper = Math.floor(n / 0x100000000); // Extract upper 32 bits (signed)
+
+    // Handle negative numbers correctly by ensuring the lower part wraps around
+    this.dataView.setUint32(this.offset, lower >>> 0, true); // Lower as unsigned
+    this.dataView.setInt32(this.offset + 4, upper, true); // Upper as signed
+    this.offset += 8;
     return this;
   }
 
   // Read an int64 value from the current index
   readInt64(): number {
-    if (this.index + 8 > this.content.length) {
+    if (this.offset + 8 > this.content.length) {
       throw new Error("Not enough data to read int64");
     }
-    const dataView = new DataView(
-      this.content.buffer,
-      this.content.byteOffset + this.index,
-      8
-    );
     // Read the int64 value
-    const lower = dataView.getUint32(0, true);
-    const upper = dataView.getInt32(4, true); // Treat as signed for the upper part
-    this.index += 8;
+    const lower = this.dataView.getUint32(this.offset, true);
+    const upper = this.dataView.getInt32(this.offset + 4, true); // Treat as signed for the upper part
+    this.offset += 8;
     // Combine the upper and lower parts
     return upper * 0x100000000 + lower;
+  }
+
+  addUtfz(str: string): Sia {
+    const lengthOffset = this.offset++;
+    const length = pack(str, str.length, this.content, this.offset);
+    this.content[lengthOffset] = length;
+    this.offset += length;
+    return this;
+  }
+
+  readUtfz(): string {
+    const length = this.readUInt8();
+    const str = unpack(this.content, length, this.offset);
+    this.offset += length;
+    return str;
+  }
+
+  addAscii(str: string): Sia {
+    const length = str.length;
+    this.addUInt8(length);
+    this.offset += asciiToUint8Array(str, length, this.content, this.offset);
+    return this;
+  }
+
+  readAscii(): string {
+    const length = this.readUInt8();
+    const str = uint8ArrayToAscii(this.content, length, this.offset);
+    this.offset += length;
+    return str;
   }
 
   addString8(str: string): Sia {
@@ -257,7 +221,7 @@ export class Sia {
   }
 
   readString8(): string {
-    const bytes = this.readByteArray8();
+    const bytes = this.readByteArray8(true);
     return this.decoder.decode(bytes);
   }
 
@@ -267,7 +231,7 @@ export class Sia {
   }
 
   readString16(): string {
-    const bytes = this.readByteArray16();
+    const bytes = this.readByteArray16(true);
     return this.decoder.decode(bytes);
   }
 
@@ -277,7 +241,7 @@ export class Sia {
   }
 
   readString32(): string {
-    const bytes = this.readByteArray32();
+    const bytes = this.readByteArray32(true);
     return this.decoder.decode(bytes);
   }
 
@@ -287,15 +251,12 @@ export class Sia {
   }
 
   readString64(): string {
-    const bytes = this.readByteArray64();
+    const bytes = this.readByteArray64(true);
     return this.decoder.decode(bytes);
   }
 
   addByteArrayN(bytes: Uint8Array): Sia {
-    const newContent = new Uint8Array(this.content.length + bytes.length);
-    newContent.set(this.content);
-    newContent.set(bytes, this.content.length);
-    this.content = newContent;
+    this.add(bytes);
     return this;
   }
 
@@ -315,48 +276,45 @@ export class Sia {
     return this.addUInt64(bytes.length).addByteArrayN(bytes);
   }
 
-  readByteArrayN(length: number): Uint8Array {
-    if (this.index + length > this.content.length) {
+  readByteArrayN(length: number, asReference = false): Uint8Array {
+    if (this.offset + length > this.content.length) {
       throw new Error("Not enough data to read byte array");
     }
-    const bytes = this.content.slice(this.index, this.index + length);
-    this.index += length;
+    const bytes = asReference
+      ? this.content.subarray(this.offset, this.offset + length)
+      : this.content.slice(this.offset, this.offset + length);
+    this.offset += length;
     return bytes;
   }
 
-  readByteArray8(): Uint8Array {
+  readByteArray8(asReference = false): Uint8Array {
     const length = this.readUInt8();
-    return this.readByteArrayN(length);
+    return this.readByteArrayN(length, asReference);
   }
 
-  readByteArray16(): Uint8Array {
+  readByteArray16(asReference = false): Uint8Array {
     const length = this.readUInt16();
-    return this.readByteArrayN(length);
+    return this.readByteArrayN(length, asReference);
   }
 
-  readByteArray32(): Uint8Array {
+  readByteArray32(asReference = false): Uint8Array {
     const length = this.readUInt32();
-    return this.readByteArrayN(length);
+    return this.readByteArrayN(length, asReference);
   }
 
-  readByteArray64(): Uint8Array {
+  readByteArray64(asReference = false): Uint8Array {
     const length = this.readUInt64();
-    return this.readByteArrayN(length);
+    return this.readByteArrayN(length, asReference);
   }
 
   addBool(b: boolean): Sia {
     const boolByte = b ? 1 : 0;
-    const newContent = new Uint8Array(this.content.length + 1);
-    newContent.set(this.content);
-    newContent[this.content.length] = boolByte;
-    this.content = newContent;
+    this.addOne(boolByte);
     return this;
   }
 
   readBool(): boolean {
-    const value = this.content[this.index] === 1;
-    this.index++;
-    return value;
+    return this.readUInt8() === 1;
   }
 
   addBigInt(n: bigint): Sia {
@@ -394,11 +352,11 @@ export class Sia {
   }
 
   private readArray<T>(length: number, fn: (s: Sia) => T): T[] {
-    const arr = [];
+    const array = new Array(length);
     for (let i = 0; i < length; i++) {
-      arr.push(fn(this));
+      array[i] = fn(this);
     }
-    return arr;
+    return array;
   }
 
   addArray8<T>(arr: T[], fn: (s: Sia, item: T) => void): Sia {
